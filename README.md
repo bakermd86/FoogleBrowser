@@ -1,5 +1,4 @@
-
-##FG Browser
+## FG Browser
 
 This is an extension for Fantasy Grounds Unity that adds a browser-style functionality for the purposes of organizing 
 and searching records and reference library data. 
