@@ -1,10 +1,10 @@
 <?xml version="1.0" encoding="iso-8859-1"?>
 
 <root logo="logo.png">
-	<announcement text="FooGle Browser v1.0" font="emotefont" />
+	<announcement text="FG Browser v1.0" font="emotefont" />
 
 	<properties>
-		<name>FooGle Browser</name>
+		<name>FG Browser</name>
 		<version>1.0</version>
 
 		<author>Fen</author>
