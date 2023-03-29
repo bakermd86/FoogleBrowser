@@ -1,0 +1,163 @@
+<?xml version="1.0" encoding="iso-8859-1"?>
+<root>
+    <windowclass name="record_browser">
+		<placement>
+			<size width="700" height="250" />
+		</placement>
+		<sizelimits>
+			<minimum width="250" height="200" />
+			<dynamic />
+		</sizelimits>
+        <script file="scripts/record_browser.lua" />
+        <sheetdata>
+            <genericcontrol name="header_anchor">
+                <anchored height="0" width="0" position="insidetopleft"/>
+            </genericcontrol>
+            <browser_title_string name="name"/>
+            <tabbed_record_list/>
+            <record_tab/>
+
+            <search_button/>
+			<close_browser_record />
+            <resize_recordsheet />
+        </sheetdata>
+    </windowclass>
+
+    <windowclass name="dummy_tab" />
+
+    <windowclass name="search_tab">
+        <frame name="search_result_frame" offset="10,0,10,10" />
+        <sheetdata>
+            <genericcontrol>
+                <anchored width="200" height="40">
+                    <left offset="15"/>
+                    <top offset="25" />
+                </anchored>
+                <icon>fgsearch_icon</icon>
+            </genericcontrol>
+            <stringfield name="searchBox">
+			    <frame name="fieldlight" offset="7,5,7,5" />
+                <anchored height="25">
+                    <top offset="70"/>
+                    <left offset="25" />
+                    <right offset="-25" />
+                </anchored>
+                <script>
+                    function onEnter()
+                        local searchString = getValue()
+                        local searchResults = SearchManager.searchRecords(searchString)
+                        DB.deleteChildren(window.getDatabaseNode(), "searchResult")
+                        for recordType, recordNodes in pairs(searchResults) do
+                            for _, recordNode in pairs(recordNodes) do
+                                local w = window.searchResult.createWindow()
+                                local displayType = LibraryData.getDisplayText(recordType)
+                                if (displayType or "") == "" then
+                                    w.class.setValue(recordType)
+                                else
+                                    w.class.setValue(displayType)
+                                end
+                                w.name.setValue(DB.getValue(recordNode, "name", "unknown"))
+                                local linkClass = LibraryData.getRecordDisplayClass(recordType, DB.getPath(recordNode))
+                                if (linkClass or "") == "" then
+                                    w.link.setValue(recordType, DB.getPath(recordNode))
+                                else
+                                    w.link.setValue(linkClass, DB.getPath(recordNode))
+                                end
+                            end
+                        end
+                        return true
+                    end
+                </script>
+            </stringfield>
+            <search_win_col_anchor />
+            <search_win_col_header>
+                <static> Record Class </static>
+            </search_win_col_header>
+            <search_win_col_header>
+                <static> Record Name </static>
+            </search_win_col_header>
+            <windowlist name="searchResult">
+                <anchored>
+                    <top offset="125" />
+                    <left offset="30" />
+                    <right offset="-30" />
+                    <bottom offset="-25"/>
+                </anchored>
+                <class>search_result_entry</class>
+                <sortby>
+                    <control>class</control>
+                </sortby>
+                <sortby>
+                    <control>name</control>
+                </sortby>
+                <datasource>.searchResult</datasource>
+				<filter><control>filter</control></filter>
+				<filteron><control>class</control></filteron>
+            </windowlist>
+            <scrollbar>
+                <anchored to="searchResult" />
+                <target>searchResult</target>
+		    </scrollbar>
+            <filter_search_label/>
+            <filter_search name="filter" />
+        </sheetdata>
+    </windowclass>
+
+    <windowclass name="search_result_entry">
+		<sheetdata>
+            <genericcontrol name="resAnchor">
+                <anchored position="insidetopleft" offset="2,2" height="20"/>
+            </genericcontrol>
+			<linkfield name="link" >
+                <anchored to="resAnchor" width="18" height="18">
+                    <top />
+                    <left anchor="right" relation="relative"/>
+                </anchored>
+                <nodrag/>
+                <script>
+                    function onClickRelease(button, x, y)
+                        if button > 2 then return false end
+	                    local recordClass, recordPath = getValue()
+                        local recordNode = DB.findNode(recordPath)
+                        if (recordNode or "") ~= "" then
+                            window.windowlist.window.parentcontrol.window.tabs.addTab(recordNode, recordClass, button == 1)
+                        end
+                        return true
+                    end
+                </script>
+            </linkfield>
+			<search_res_text name="class" />
+			<search_res_text name="name" >
+                <anchored>
+                    <right parent="" offset="2"/>
+                </anchored>
+            </search_res_text>
+		</sheetdata>
+    </windowclass>
+
+    <windowclass name="tab_entry">
+        <sheetdata>
+            <record_tab_button name="tabButton"/>
+            <record_tab_name name="name"/>
+            <hidden_string name="class"/>
+            <hidden_string name="node"/>
+        </sheetdata>
+        <script file="scripts/tab_entry.lua"/>
+    </windowclass>
+
+    <windowclass name="tab_dummy">
+        <sheetdata>
+            <genericcontrol>
+                <anchored position="insidetopleft" height="18" width="0"/>
+            </genericcontrol>
+        </sheetdata>
+    </windowclass>
+
+	<windowclass name="record_browser_header">
+		<margins control="0,0,0,7" />
+		<script file="common/scripts/record_header.lua" />
+		<sheetdata>
+            <browser_title_string name="name"/>
+		</sheetdata>
+	</windowclass>
+</root>

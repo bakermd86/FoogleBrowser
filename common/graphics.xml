@@ -1,0 +1,38 @@
+<?xml version="1.0" encoding="iso-8859-1"?>
+<root>
+    <framedef name="browser_frame">
+        <bitmap file="graphics/browser_frame.png"/>
+        <offset>10,2,10,10</offset>
+    </framedef>
+    <framedef name="browser_tab_frame">
+        <bitmap file="graphics/browser_tab_frame.png"/>
+        <offset>10,2,10,2</offset>
+    </framedef>
+    <framedef name="browser_tab_frame_down">
+        <bitmap file="graphics/browser_tab_frame_down.png"/>
+        <offset>10,2,10,2</offset>
+    </framedef>
+    <framedef name="browser_title_frame">
+        <bitmap file="graphics/browser_title_frame.png"/>
+        <offset>10,2,10,2</offset>
+    </framedef>
+    <framedef name="browser_tab_list_frame">
+        <bitmap file="graphics/browser_tab_list_frame.png"/>
+        <offset>10,2,10,0</offset>
+    </framedef>
+    <framedef name="search_result_frame">
+        <bitmap file="graphics/search_result_frame.png"/>
+        <offset>10,0,10,10</offset>
+    </framedef>
+
+    <icon name="sidebar_icon_recordtype_record_browser" file="graphics/sidebar_icon_browser.png" />
+	<icon name="button_record_browser_close" file="graphics/button_record_browser_close.png" />
+	<icon name="button_record_browser_close_down" file="graphics/button_record_browser_close_down.png" />
+	<icon name="button_record_browser_close_hover" file="graphics/button_record_browser_close_hover.png" />
+	<icon name="button_search_tab" file="graphics/button_search_tab.png" />
+	<icon name="button_search_tab_down" file="graphics/button_search_tab_down.png" />
+	<icon name="button_search_tab_hover" file="graphics/button_search_tab_hover.png" />
+    <icon name="fgsearch_icon" file="graphics/fgsearch.png" />
+	<icon name="icon_save" file="graphics/icon_save.png" />
+
+</root>

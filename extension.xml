@@ -1,0 +1,24 @@
+<?xml version="1.0" encoding="iso-8859-1"?>
+
+<root logo="logo.png">
+	<announcement text="FooGle Browser v1.0" font="emotefont" />
+
+	<properties>
+		<name>FooGle Browser</name>
+		<version>1.0</version>
+
+		<author>Fen</author>
+		<description>Adds a tabbed browser window for containing and searching records</description>
+
+		<loadorder>1000</loadorder>
+	</properties>
+	<base>
+		<includefile source="common/strings_common.xml"/>
+		<includefile source="common/template_common.xml"/>
+		<includefile source="common/record_browser.xml"/>
+		<includefile source="common/graphics.xml"/>
+
+		<script name="BrowserManager" file="scripts/browser_manager.lua" />
+		<script name="SearchManager" file="scripts/search_manager.lua" />
+	</base>
+</root>

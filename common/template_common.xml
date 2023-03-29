@@ -1,0 +1,219 @@
+<?xml version="1.0" encoding="iso-8859-1"?>
+<root>
+
+	<template name="tabbed_record_list">
+		<windowlist name="tabs">
+			<frame name="browser_tab_list_frame" offset="4,4,0,0" />
+			<anchored to="header_anchor" height="21">
+				<left anchor="right" offset="5" relation="relative"/>
+				<top offset="4"/>
+				<right parent="" />
+			</anchored>
+			<class>tab_entry</class>
+			<columns >
+				<fillwidth />
+			</columns>
+			<script file="scripts/tab_list.lua" />
+			<empty >
+				<text> &lt;&lt; Drag records here to add them to the browser &gt;&gt;</text>
+			</empty>
+			<datasource>.tabs</datasource>
+		</windowlist>
+	</template>
+
+	<template name="search_button">
+		<buttoncontrol name="searchButton">
+			<anchored height="18" width="18">
+				<top offset="4" />
+				<left offset="4" />
+			</anchored>
+			<icon normal="button_search_tab" hover="button_search_tab_hover" pressed="button_search_tab_down" />
+			<pressed offset="1,1" />
+			<script>
+				function onButtonPress()
+					window.activeTab.setValue("search_tab", window.getDatabaseNode())
+				end
+			</script>
+		</buttoncontrol>
+	</template>
+
+	<template name="filter_search_label">
+		<label>
+			<anchored height="20" width="90">
+				<left parent="searchResult" offset="5" />
+				<bottom offset="-5" />
+			</anchored>
+			<static>Filter Class:</static>
+		</label>
+	</template>
+
+	<template name="filter_search">
+		<filter>
+			<anchored height="20">
+				<left parent="searchResult" offset="100" />
+				<right parent="searchResult" offset="-20"/>
+				<bottom offset="-5" />
+			</anchored>
+		</filter>
+	</template>
+
+	<template name="record_tab">
+		<subwindow name="activeTab">
+        	<frame name="browser_frame" offset="10,2,10,10"/>
+			<class>search_tab</class>
+			<anchored >
+				<right />
+				<bottom />
+				<left />
+				<top parent="tabs" anchor="bottom"/>
+			</anchored>
+			<activate />
+			<fastinit />
+			<script>
+				function onValueChanged()
+					local class, node = getValue()
+					window.setRecordSize(class)
+				end
+				function onInstanceCreated()
+					local class, node = getValue()
+					self.sizeOverride(class)
+				end
+				function sizeOverride(class)
+					if class == "record_browser" then
+						self.subwindow.overrideSizeChange(window.getSize, window.setSize, window.getLayerOffset())
+					end
+				end
+			</script>
+		</subwindow>
+	</template>
+	<template name="record_tab_button">
+		<buttoncontrol>
+			<anchored height="18">
+				<left offset="11"/>
+				<top offset="2"/>
+				<right offset="-11" />
+			</anchored>
+			<frame name="browser_tab_frame" offset="10,2,10,2" />
+			<stateframe>
+				<pressed name="browser_tab_frame_down" offset="10,2,10,2" nobaseframe="true" />
+			</stateframe>
+			<font>defaultstringcontrol</font>
+			<pressed offset="1,1" />
+			<script file="scripts/browser_tab_button.lua"/>
+			<allowdoubleclick />
+		</buttoncontrol>
+	</template>
+
+	<template name="record_tab_name">
+		<simplestring name="name">
+			<anchored height="18">
+				<left offset="11"/>
+				<top offset="2"/>
+				<right offset="-11" />
+			</anchored>
+			<frame name="browser_tab_frame" offset="10,2,10,2" />
+			<invisible />
+			<center />
+			<font>defaultstringcontrol</font>
+			<script>
+				function onLoseFocus()
+					self.setVisible(false)
+					window.tabButton.setVisible(true)
+					window.tabButton.setEnabled(true)
+				end
+				function onValueChanged()
+					window.tabButton.setText(getValue())
+				end
+			</script>
+		</simplestring>
+	</template>
+
+	<template name="delete_tab_button">
+		<button_idelete>
+			<anchored to="tabButton" position="insideright" offset="5"/>
+			<editmode>always_edit</editmode>
+		</button_idelete>
+	</template>
+
+	<template name="searchstring">
+		<simplestringc>
+			<frame mergerule="replace" name="search" margin="17,5,1,5" hidereadonly="true" />
+			<stateframe>
+				<keyedit name="search_active" margin="17,5,1,5" />
+			</stateframe>
+		</simplestringc>
+	</template>
+
+	<template name="hidden_string">
+		<stringfield >
+			<anchored position="insidetopleft" height="0" width="0"/>
+			<invisible/>
+		</stringfield>
+	</template>
+
+	<template name="tab_browser_header">
+		<subwindow>
+			<anchored>
+				<top />
+			</anchored>
+		</subwindow>
+	</template>
+
+	<template name="close_browser_record">
+		<close_base>
+			<anchored height="18" width="18">
+				<top offset="4"/>
+				<right offset="-4" />
+			</anchored>
+			<icon mergerule="replace" normal="button_record_browser_close"
+				  hover="button_record_browser_close_hover" pressed="button_record_browser_close_down" />
+			<pressed offset="1,1" />
+		</close_base>
+	</template>
+
+	<template name="browser_title_string">
+		<stringfield>
+			<anchored to="header_anchor" height="21" width="100">
+				<top offset="2"/>
+				<left offset="24" anchor="right" relation="relative"/>
+			</anchored>
+			<frame name="browser_title_frame" offset="24,2,10,2" />
+			<font>sheettext</font>
+			<multilinespacing>20</multilinespacing>
+			<nodrag />
+			<delaykeyupdate />
+		</stringfield>
+	</template>
+
+	<template name="search_res_text">
+		<stringfield >
+                <anchored to="resAnchor" height="20" width="100">
+                    <top />
+                    <left anchor="right" relation="relative" offset="2"/>
+                </anchored>
+			<font>reference-r</font>
+			<empty>-</empty>
+			<readonly />
+		</stringfield>
+	</template>
+
+	<template name="search_win_col_anchor">
+		<genericcontrol name="colAnchor">
+			<anchored>
+				<top offset="100" />
+				<left offset="30"/>
+			</anchored>
+		</genericcontrol>
+	</template>
+
+	<template name="search_win_col_header">
+		<stringcontrol>
+			<font>sheetlabel</font>
+			<readonly />
+			<anchored width="100" to="colAnchor" height="20">
+				<top />
+				<left anchor="right" relation="relative" offset="2"/>
+			</anchored>
+		</stringcontrol>
+	</template>
+</root>
