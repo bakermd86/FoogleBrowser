@@ -26,6 +26,7 @@
     </framedef>
 
     <icon name="sidebar_icon_recordtype_record_browser" file="graphics/sidebar_icon_browser.png" />
+    <icon name="sidebar_icon_recordtype_player_record_browser" file="graphics/sidebar_icon_browser.png" />
 	<icon name="button_record_browser_close" file="graphics/button_record_browser_close.png" />
 	<icon name="button_record_browser_close_down" file="graphics/button_record_browser_close_down.png" />
 	<icon name="button_record_browser_close_hover" file="graphics/button_record_browser_close_hover.png" />

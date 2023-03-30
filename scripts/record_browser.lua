@@ -7,7 +7,8 @@ function onInit()
     _getCallback = getSize
     _setCallback = setSize
     self.onSizeChanged = handleSizeChanged
-    if DB.getParent(getDatabaseNode()).getNodeName() == "temp_browsers" then
+    local parent_node = DB.getParent(getDatabaseNode()).getNodeName()
+    if parent_node == "temp_browsers" or parent_node == "player_temp_browsers" then
         registerMenuItem("Save Browser", "icon_save", 7)
     end
 end
@@ -16,11 +17,7 @@ function onMenuSelection(selectNum)
     if selectNum == 7 then
         local tempNode = getDatabaseNode()
         if (tempNode or "") == "" then return end
-        local savedNode = BrowserManager.newPersistentBrowser()
-        if (savedNode or "") == "" then return end
-        DB.copyNode(tempNode, savedNode)
-        Interface.openWindow("record_browser", savedNode)
-        DB.deleteNode(tempNode)
+        BrowserManager.persistBrowser(tempNode)
         self.close()
     end
 end
@@ -29,15 +26,6 @@ function setRecordSize(sizeClass)
     local curW, curH = getSize()
     local classW = DB.getValue(getDatabaseNode(), "sizes." .. sizeClass.."_w", curW)
     local classH = DB.getValue(getDatabaseNode(), "sizes." .. sizeClass.."_h", curH)
---     if sizeClass == "" or sizeClass == "dummy_tab" then
---         classH = _rh_head_height*2 + _layer_offset
---     elseif sizeClass == "record_browser" then
---         classH = _rh_head_height*3 + _layer_offset
---     elseif sizeClass == "search_tab" and classH < (_rh_head_height * 8) then
---         classH = _rh_head_height * 8
---     elseif classH < _rh_head_height * 3 then
---         classH = _rh_head_height * 3
---     end
     _setCallback(classW, classH)
 end
 
