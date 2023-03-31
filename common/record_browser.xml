@@ -45,26 +45,9 @@
                 <script>
                     function onEnter()
                         local searchString = getValue()
-                        local searchResults = SearchManager.searchRecords(searchString)
-                        DB.deleteChildren(window.getDatabaseNode(), "searchResult")
-                        for recordType, recordNodes in pairs(searchResults) do
-                            for _, recordNode in pairs(recordNodes) do
-                                local w = window.searchResult.createWindow()
-                                local displayType = LibraryData.getDisplayText(recordType)
-                                if (displayType or "") == "" then
-                                    w.class.setValue(recordType)
-                                else
-                                    w.class.setValue(displayType)
-                                end
-                                w.name.setValue(DB.getValue(recordNode, "name", "unknown"))
-                                local linkClass = LibraryData.getRecordDisplayClass(recordType, DB.getPath(recordNode))
-                                if (linkClass or "") == "" then
-                                    w.link.setValue(recordType, DB.getPath(recordNode))
-                                else
-                                    w.link.setValue(linkClass, DB.getPath(recordNode))
-                                end
-                            end
-                        end
+                        local searchResultNode = DB.createChild(window.getDatabaseNode(), "searchResult")
+                        DB.deleteChildren(searchResultNode)
+                        SearchManager.searchRecords(string.lower(searchString), DB.getPath(searchResultNode))
                         return true
                     end
                 </script>

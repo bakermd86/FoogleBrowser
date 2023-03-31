@@ -7,5 +7,4 @@ rm -f /mnt/c/Users/Michael/AppData/Roaming/SmiteWorks/Fantasy\ Grounds/cache/Sta
 rm -f /mnt/c/Users/Michael/AppData/Roaming/SmiteWorks/Fantasy\ Grounds/cache/STADev/extensions/*
 rm -f /mnt/c/Users/Michael/AppData/Roaming/SmiteWorks/Fantasy\ Grounds/cache/SWAETest/extensions/*
 rm -f /mnt/c/Users/Michael/AppData/Roaming/SmiteWorks/Fantasy\ Grounds/cache/Pathfinder\ Test/extensions/*
-
-
+rm -f /mnt/c/Users/Michael/AppData/Roaming/SmiteWorks/Fantasy\ Grounds/cache/5eImportTest/extensions/*

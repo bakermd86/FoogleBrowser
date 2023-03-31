@@ -1,35 +1,75 @@
-function searchRecords(searchString)
-    local matchedRecords = {}
-    for _, recordType in pairs(LibraryData.getRecordTypes()) do
---         matchedRecords[recordType] = searchRecordType(LibraryData.getRootMapping(recordType), string.lower(searchString))
-        local recordMatches = {}
-        for _, recordMapping in ipairs(LibraryData.getMappings(recordType)) do
-             for _, resultNode in ipairs(searchRecordType(recordMapping, string.lower(searchString))) do
-                recordMatches[DB.getPath(resultNode)] = resultNode
-             end
-        end
-        matchedRecords[recordType] = recordMatches
+local OOB_SEARCH = "OOB_SEARCH"
+local _activeSearchesMap = {}
+
+local _sTime = nil
+local _commTime = nil
+
+function searchRecords(searchString, searchResultNode)
+    local searchResults = {}
+    local startTime = os.clock()
+    for word, _ in pairs(SearchIndexer.tokenizeStr(string.lower(searchString))) do
+       SearchIndexer.updateSearchByWord(word, searchResults)
     end
-    for recordType, recordMatches in pairs(searchLibraryRecords(string.lower(searchString))) do
-        if (matchedRecords[recordType] or "") == "" then
-            matchedRecords[recordType] = recordMatches
-        else
-            for _, recordMatch in ipairs(recordMatches) do
-                table.insert(matchedRecords[recordType], recordMatch)
+--     for _, recordType in pairs(LibraryData.getRecordTypes()) do
+--         local recordMatches = {}
+--         for _, recordMapping in ipairs(LibraryData.getMappings(recordType)) do
+--              for _, resultNode in ipairs(searchRecordType(recordMapping, searchString)) do
+--                 recordMatches[DB.getPath(resultNode)] = resultNode
+--              end
+--         end
+--         searchResults[recordType] = recordMatches
+--     end
+--     local recordSearchTime = os.clock()
+--     for recordType, recordMatches in pairs(searchLibraryRecords(searchString)) do
+--         if (searchResults[recordType] or "") == "" then
+--             searchResults[recordType] = recordMatches
+--         else
+--             for _, recordMatch in ipairs(recordMatches) do
+--                 table.insert(searchResults[recordType], recordMatch)
+--             end
+--         end
+--     end
+    local librarySearchTime = os.clock()
+    updateSearchDisplay(searchResults, searchResultNode)
+    local endTime = os.clock()
+--     Debug.chat("Record Search Time: ", recordSearchTime - startTime)
+    Debug.chat("Lib search time: ", librarySearchTime - startTime)
+    Debug.chat("result update time: ", endTime - librarySearchTime)
+    Debug.chat("Total time: ", endTime - startTime)
+    return searchResults
+end
+
+function updateSearchDisplay(searchResults, searchResultNode)
+    for recordType, recordNodes in pairs(searchResults) do
+        for _, recordPath in pairs(recordNodes) do
+            local recordNode = DB.findNode(recordPath)
+            local outputNode = DB.createChild(searchResultNode)
+            local displayType = LibraryData.getDisplayText(recordType)
+            if (displayType or "") == "" then
+                DB.setValue(outputNode, "class", "string", recordType)
+            else
+                DB.setValue(outputNode, "class", "string", displayType)
+            end
+            DB.setValue(outputNode, "name", "string", DB.getValue(recordNode, "name", "unknown"))
+            local linkClass = LibraryData.getRecordDisplayClass(recordType, recordPath)
+            if (linkClass or "") == "" then
+                DB.setValue(outputNode, "link", "windowreference", recordType, recordPath)
+            else
+                DB.setValue(outputNode, "link", "windowreference", linkClass, recordPath)
             end
         end
     end
-    return matchedRecords
+    return true
 end
 
 function searchLibraryRecords(searchString)
     local libraryMatches = {}
-    for _, libraryNode in ipairs(getAllFromModules("library")) do
+    for libraryNode, _ in pairs(getAllFromModules("library")) do
         for matchedNode, matched in pairs(walkLibrary(libraryNode, searchString)) do
             if matched then
                 local matchClass, _ = DB.getValue(matchedNode, "librarylink")
                 if (matchClass or "") ~= "" then
-                    libraryMatches[matchedNode]=matchClass
+                    libraryMatches[DB.getPath(matchedNode)]=matchClass
                 end
             end
         end
@@ -47,7 +87,7 @@ end
 function walkLibrary(libraryNode, searchString)
     if DB.getType(libraryNode) == "node" then
         local nodeHits = {}
-        for _, childNode in pairs(DB.getChildrenGlobal(libraryNode)) do
+        for _, childNode in pairs(DB.getChildren(libraryNode)) do
             for matchedNode, matched in pairs(walkLibrary(childNode, searchString)) do
                 if matched then
                     nodeHits[matchedNode] = matched
@@ -76,7 +116,7 @@ end
 
 function searchRecordType(recordType, searchString)
     local matchedNodes = {}
-    for _, recordNode in ipairs(getAllFromModules(recordType)) do
+    for recordNode, _  in pairs(getAllFromModules(recordType)) do
         if searchNode(recordNode, searchString) then
             table.insert(matchedNodes, recordNode)
         end
@@ -94,7 +134,7 @@ end
 
 function searchNode(node, searchString)
     if DB.getType(node) == "node" then
-        for _, childNode in pairs(DB.getChildrenGlobal(node)) do
+        for _, childNode in pairs(DB.getChildren(node)) do
              if searchNode(childNode, searchString) then
                 return true
             end
@@ -109,11 +149,11 @@ function getAllFromModules(recordType)
     local nodes = {}
     if (recordType or "") == "" then return nodes end
     for name, node in pairs(DB.getChildren(recordType)) do
-        table.insert(nodes, node)
+        nodes[node] = false
     end
     for _, module in ipairs(Module.getModules()) do
         for name, node in pairs(DB.getChildren(recordType .. "@" .. module)) do
-            table.insert(nodes, node)
+            nodes[node] = true
         end
     end
     return nodes

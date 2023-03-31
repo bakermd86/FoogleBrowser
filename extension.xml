@@ -20,5 +20,6 @@
 
 		<script name="BrowserManager" file="scripts/browser_manager.lua" />
 		<script name="SearchManager" file="scripts/search_manager.lua" />
+		<script name="SearchIndexer" file="scripts/search_indexer.lua" />
 	</base>
 </root>
