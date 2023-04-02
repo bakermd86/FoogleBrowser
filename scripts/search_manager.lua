@@ -142,8 +142,10 @@ function getAllFromModules(recordType)
         nodes[node] = ""
     end
     for _, module in ipairs(Module.getModules()) do
-        for name, node in pairs(DB.getChildren(recordType .. "@" .. module)) do
-            nodes[node] = module
+        if Module.getModuleInfo(module)["loaded"] then
+            for name, node in pairs(DB.getChildren(recordType .. "@" .. module)) do
+                nodes[node] = module
+            end
         end
     end
     return nodes

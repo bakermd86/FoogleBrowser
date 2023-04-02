@@ -1,7 +1,8 @@
 local _indexLogicVer = 3
+local indexAgeLimit = 5
 local _forwardSearchIndex = {}
 local _reverseSearchIndex = {}
-local _moduleReverseMap = {}
+local _indexedModules = {}
 local INDEX_MODULES = "INDEX_MODULES"
 local INDEX_REFERENCE = "INDEX_REFERENCE"
 local INDEX_FMT_TEXT = "INDEX_FMT_TEXT"
@@ -14,27 +15,30 @@ function onInit()
         { labels = "option_val_on", values = "on", baselabel = "option_val_off", baseval = "off", default = "on" })
     end
 --     CampaignRegistry["storedSearchIndex"] = nil
-    Interface.onDesktopInit = loadIndex;
+--     Interface.onDesktopInit = loadIndex;
+    loadIndex()
 end
 
 function loadIndex()
     local sTime = os.clock()
     _forwardSearchIndex = CampaignRegistry["storedSearchIndex"]
+    _reverseSearchIndex = CampaignRegistry["reverseSearchIndex"]
+    _indexedModules = CampaignRegistry["indexedModules"]
     local indexAge = CampaignRegistry["indexAge"]
     local indexVer = CampaignRegistry["indexVer"]
     if (indexAge or "") == "" then indexAge = 1 end
-    if ((_forwardSearchIndex or "") == "") or (indexAge > 10) or (_indexLogicVer ~= indexVer) then
+    if ((_forwardSearchIndex or "") == "") or (indexAge > indexAgeLimit) or (_indexLogicVer ~= indexVer) then
         buildIndex()
         indexAge = 1
         CampaignRegistry["indexVer"] = _indexLogicVer
     else
         indexAge = indexAge + 1
-        for mVal, nodeMatches in pairs(_forwardSearchIndex) do
-            for nodeStr, recordType in pairs(nodeMatches) do
-                if (_reverseSearchIndex[nodeStr] == nil) then _reverseSearchIndex[nodeStr] = {} end
-                table.insert(_reverseSearchIndex[nodeStr], mVal)
-            end
-        end
+--         for mVal, nodeMatches in pairs(_forwardSearchIndex) do
+--             for nodeStr, recordType in pairs(nodeMatches) do
+--                 if (_reverseSearchIndex[nodeStr] == nil) then _reverseSearchIndex[nodeStr] = {} end
+--                 table.insert(_reverseSearchIndex[nodeStr], mVal)
+--             end
+--         end
     end
     connectDBListeners()
     Debug.console("Loading index took: ", os.clock() - sTime)
@@ -56,13 +60,6 @@ function updateSearchByWord(word, searchResults)
         searchResults[matchClass][nodeStr] = searchResults[matchClass][nodeStr] + weight
     end
 end
-
-function saveIndex()
-    local sTime = os.clock()
-    CampaignRegistry["storedSearchIndex"] = _forwardSearchIndex
-    Debug.console("Saving index took: ", os.clock() - sTime)
-end
-
 function getRecords(recordMapping)
     if (recordMapping or "") == "" then return {} end
     if OptionsManager.getOption(INDEX_MODULES) == "on" then
@@ -76,28 +73,32 @@ function getRecords(recordMapping)
     end
 end
 
-function processNode(recordNode, recordType, module)
-    local isModule = module ~= ""
+function processNode(recordNode, recordType)
     local nodeStr = DB.getPath(recordNode)
-    if isModule and (_moduleReverseMap[module] == nil) then _moduleReverseMap[module] = {} end
     for mVal, tokens in pairs(indexRecord(recordNode)) do
         if (_forwardSearchIndex[mVal] == nil) then _forwardSearchIndex[mVal] = {} end
         _forwardSearchIndex[mVal][nodeStr] = { ["recordType"] = recordType, ["weight"] = tokens["weight"] }
         if (_reverseSearchIndex[nodeStr] == nil) then _reverseSearchIndex[nodeStr] = {} end
         table.insert(_reverseSearchIndex[nodeStr], mVal)
-        if isModule then table.insert(_moduleReverseMap[module], nodeStr) end
     end
+end
+
+function saveIndex()
+    CampaignRegistry["indexedModules"] = _indexedModules
+    CampaignRegistry["storedSearchIndex"] = _forwardSearchIndex
+    CampaignRegistry["reverseSearchIndex"] = _reverseSearchIndex
 end
 
 function buildIndex()
     _indexFmt = OptionsManager.getOption(INDEX_FMT_TEXT) == "on"
     _forwardSearchIndex = {}
     _reverseSearchIndex = {}
+    _indexedModules = {}
     local sTime = os.clock()
     for _, recordType in pairs(LibraryData.getRecordTypes()) do
         for _, recordMapping in ipairs(LibraryData.getMappings(recordType)) do
             for recordNode, module  in pairs(getRecords(recordMapping)) do
-                processNode(recordNode, recordType, module)
+                processNode(recordNode, recordType)
              end
         end
     end
@@ -111,34 +112,49 @@ function buildIndex()
             end
         end
     end
+    if OptionsManager.getOption(INDEX_MODULES) == "on" then
+        for _, module in ipairs(Module.getModules()) do
+            Debug.console("Loaded module: ", module, _)
+            _indexedModules[module] = Module.getModuleInfo(module)["loaded"]
+        end
+    end
     saveIndex()
     Debug.console("SearchIndexer.buildIndex: ", os.clock() - sTime)
 end
 
 function onModuleLoad(module)
+    if (OptionsManager.getOption(INDEX_MODULES) == "off") or (_indexedModules[module]) then return end
     local sTime = os.clock()
-    _moduleReverseMap[module] = {}
     for _, recordType in pairs(LibraryData.getRecordTypes()) do
         for _, recordMapping in ipairs(LibraryData.getMappings(recordType)) do
             for _, recordNode in pairs(DB.getChildren(recordMapping .. "@" .. module)) do
-                processNode(recordNode, recordType, module)
+                processNode(recordNode, recordType)
             end
         end
     end
+    _indexedModules[module] = true
+    saveIndex()
     Debug.console("Indexing module " .. module .. " took ", os.clock() - sTime)
 end
 
 function onModuleUnload(module)
+    if not _indexedModules[module] then return end
     local sTime = os.clock()
-    for _, nodeStr in ipairs(_moduleReverseMap[module]) do
-        if _reverseSearchIndex[nodeStr] then
-            for _, mVal in ipairs(_reverseSearchIndex[nodeStr]) do
-                _forwardSearchIndex[mVal][nodeStr] = nil
+    for _, recordType in pairs(LibraryData.getRecordTypes()) do
+        for _, recordMapping in ipairs(LibraryData.getMappings(recordType)) do
+            for _, recordNode in pairs(DB.getChildren(recordMapping .. "@" .. module)) do
+                local nodeStr = DB.getPath(recordNode)
+                if _reverseSearchIndex[nodeStr] then
+                    for _, mVal in ipairs(_reverseSearchIndex[nodeStr]) do
+                        _forwardSearchIndex[mVal][nodeStr] = nil
+                    end
+                end
+                _reverseSearchIndex[nodeStr] = nil
             end
         end
-        _reverseSearchIndex[nodeStr] = nil
     end
-    _moduleReverseMap[module] = nil
+    _indexedModules[module] = nil
+    saveIndex()
     Debug.console("Clearing index for module " .. module .. " took ", os.clock() - sTime)
 end
 
@@ -146,7 +162,8 @@ function connectDBListeners()
     for _, recordType in pairs(LibraryData.getRecordTypes()) do
         for _, recordMapping in ipairs(LibraryData.getMappings(recordType)) do
             connectRecordTypeListener(recordMapping)
-            for recordNode, isModule  in pairs(getRecords(recordMapping)) do
+            for recordNode, module  in pairs(getRecords(recordMapping)) do
+                local isModule = module ~= ""
                 connectNodeListener(DB.getPath(recordNode), isModule)
             end
         end

@@ -2,7 +2,7 @@
 <root>
     <windowclass name="record_browser">
 		<placement>
-			<size width="700" height="250" />
+			<size width="700" height="600" />
 		</placement>
 		<sizelimits>
 			<minimum width="250" height="200" />
