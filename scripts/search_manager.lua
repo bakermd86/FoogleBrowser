@@ -7,41 +7,22 @@ local _commTime = nil
 function searchRecords(searchString, searchResultNode)
     local searchResults = {}
     local startTime = os.clock()
-    for word, _ in pairs(SearchIndexer.tokenizeStr(string.lower(searchString))) do
+    for word, _ in pairs(SearchIndexer.tokenizeStr(searchString)) do
        SearchIndexer.updateSearchByWord(word, searchResults)
     end
---     for _, recordType in pairs(LibraryData.getRecordTypes()) do
---         local recordMatches = {}
---         for _, recordMapping in ipairs(LibraryData.getMappings(recordType)) do
---              for _, resultNode in ipairs(searchRecordType(recordMapping, searchString)) do
---                 recordMatches[DB.getPath(resultNode)] = resultNode
---              end
---         end
---         searchResults[recordType] = recordMatches
---     end
---     local recordSearchTime = os.clock()
---     for recordType, recordMatches in pairs(searchLibraryRecords(searchString)) do
---         if (searchResults[recordType] or "") == "" then
---             searchResults[recordType] = recordMatches
---         else
---             for _, recordMatch in ipairs(recordMatches) do
---                 table.insert(searchResults[recordType], recordMatch)
---             end
---         end
---     end
+
     local librarySearchTime = os.clock()
-    updateSearchDisplay(searchResults, searchResultNode)
+    updateSearchDisplay(searchResults, searchResultNode, searchString)
     local endTime = os.clock()
---     Debug.chat("Record Search Time: ", recordSearchTime - startTime)
-    Debug.chat("Lib search time: ", librarySearchTime - startTime)
-    Debug.chat("result update time: ", endTime - librarySearchTime)
-    Debug.chat("Total time: ", endTime - startTime)
-    return searchResults
+    Debug.console("Lib search time: ", librarySearchTime - startTime)
+    Debug.console("result update time: ", endTime - librarySearchTime)
+    Debug.console("Total time: ", endTime - startTime)
+--     return searchResults
 end
 
-function updateSearchDisplay(searchResults, searchResultNode)
+function updateSearchDisplay(searchResults, searchResultNode, searchString)
     for recordType, recordNodes in pairs(searchResults) do
-        for _, recordPath in pairs(recordNodes) do
+        for recordPath, weight in pairs(recordNodes) do
             local recordNode = DB.findNode(recordPath)
             local outputNode = DB.createChild(searchResultNode)
             local displayType = LibraryData.getDisplayText(recordType)
@@ -50,12 +31,21 @@ function updateSearchDisplay(searchResults, searchResultNode)
             else
                 DB.setValue(outputNode, "class", "string", displayType)
             end
-            DB.setValue(outputNode, "name", "string", DB.getValue(recordNode, "name", "unknown"))
+            local nameVal = DB.getValue(recordNode, "name", "unknown")
+            DB.setValue(outputNode, "name", "string", nameVal)
             local linkClass = LibraryData.getRecordDisplayClass(recordType, recordPath)
             if (linkClass or "") == "" then
                 DB.setValue(outputNode, "link", "windowreference", recordType, recordPath)
             else
                 DB.setValue(outputNode, "link", "windowreference", linkClass, recordPath)
+            end
+            if string.find(string.lower(nameVal), searchString) then weight = weight*5 end
+            DB.setValue(outputNode, "weight", "number", weight*-1)
+            local mIdx = string.find(recordPath, "@")
+            if mIdx then
+                DB.setValue(outputNode, "moduleSrc", "string", recordPath:sub(mIdx+1))
+            else
+                DB.setValue(outputNode, "moduleSrc", "string", "Campaign")
             end
         end
     end
@@ -149,11 +139,11 @@ function getAllFromModules(recordType)
     local nodes = {}
     if (recordType or "") == "" then return nodes end
     for name, node in pairs(DB.getChildren(recordType)) do
-        nodes[node] = false
+        nodes[node] = ""
     end
     for _, module in ipairs(Module.getModules()) do
         for name, node in pairs(DB.getChildren(recordType .. "@" .. module)) do
-            nodes[node] = true
+            nodes[node] = module
         end
     end
     return nodes

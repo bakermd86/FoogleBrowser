@@ -58,6 +58,15 @@
             </search_win_col_header>
             <search_win_col_header>
                 <static> Record Name </static>
+                <anchored>
+                    <right parent="" offset="-125"/>
+                </anchored>
+            </search_win_col_header>
+            <search_win_col_header>
+                <static> Record Source </static>
+                <anchored>
+                    <right parent="" offset="-5"/>
+                </anchored>
             </search_win_col_header>
             <windowlist name="searchResult">
                 <anchored>
@@ -68,10 +77,13 @@
                 </anchored>
                 <class>search_result_entry</class>
                 <sortby>
-                    <control>class</control>
+                    <field>weight</field>
                 </sortby>
                 <sortby>
-                    <control>name</control>
+                    <field>class</field>
+                </sortby>
+                <sortby>
+                    <field>name</field>
                 </sortby>
                 <datasource>.searchResult</datasource>
 				<filter><control>filter</control></filter>
@@ -81,7 +93,9 @@
                 <anchored to="searchResult" />
                 <target>searchResult</target>
 		    </scrollbar>
-            <filter_search_label/>
+            <filter_label>
+			    <static>Filter Class:</static>
+            </filter_label>
             <filter_search name="filter" />
         </sheetdata>
     </windowclass>
@@ -112,9 +126,21 @@
 			<search_res_text name="class" />
 			<search_res_text name="name" >
                 <anchored>
-                    <right parent="" offset="2"/>
+                    <right parent="" offset="-160"/>
                 </anchored>
             </search_res_text>
+			<search_res_text name="moduleSrc" >
+                <anchored>
+                    <right parent="" offset="-5"/>
+                </anchored>
+            </search_res_text>
+<!--            <simplenumber name="weight" >-->
+<!--&lt;!&ndash;                <anchored position="insidetopleft" width="0" height="0"/>&ndash;&gt;-->
+<!--                <anchored to="resAnchor" height="20" width="20">-->
+<!--                    <top />-->
+<!--                    <left anchor="right" relation="relative" offset="2"/>-->
+<!--                </anchored>-->
+<!--            </simplenumber>-->
 		</sheetdata>
     </windowclass>
 
@@ -143,4 +169,13 @@
             <browser_title_string name="name"/>
 		</sheetdata>
 	</windowclass>
+
+    <windowclass name="reindex_search">
+        <script>
+            function onInit()
+                SearchIndexer.buildIndex()
+                self.close()
+            end
+        </script>
+    </windowclass>
 </root>

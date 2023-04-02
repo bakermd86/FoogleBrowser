@@ -2,4 +2,10 @@
 <root>
     <string name="library_recordtype_label_record_browser">Browsers</string>
     <string name="library_recordtype_label_player_record_browser">Player Browsers</string>
+	<string name="option_header_search_options">Search Options</string>
+    <string name="label_option_rebuild_index">Rebuild Search Index</string>
+    <string name="label_option_INDEX_MODULES">Index Modules</string>
+    <string name="label_option_INDEX_REFERENCE">Index Reference Material</string>
+    <string name="label_option_INDEX_FMT_TEXT">Index Formatted Text</string>
+
 </root>

@@ -37,13 +37,12 @@
 		</buttoncontrol>
 	</template>
 
-	<template name="filter_search_label">
+	<template name="filter_label">
 		<label>
 			<anchored height="20" width="90">
 				<left parent="searchResult" offset="5" />
-				<bottom offset="-5" />
+				<top anchor="bottom" parent="searchResult" relation="current" offset="5" />
 			</anchored>
-			<static>Filter Class:</static>
 		</label>
 	</template>
 
@@ -52,7 +51,7 @@
 			<anchored height="20">
 				<left parent="searchResult" offset="100" />
 				<right parent="searchResult" offset="-20"/>
-				<bottom offset="-5" />
+				<top anchor="bottom" parent="searchResult" relation="relative" offset="5" />
 			</anchored>
 		</filter>
 	</template>
