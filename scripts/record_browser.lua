@@ -48,3 +48,4 @@ function handleSizeChanged(source)
     end
     tabs.handleSizeChanged(curW)
 end
+

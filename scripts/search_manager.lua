@@ -1,55 +1,100 @@
 local OOB_SEARCH = "OOB_SEARCH"
 local _activeSearchesMap = {}
-
+local _pageLimit = 50
 local _sTime = nil
 local _commTime = nil
 
-function searchRecords(searchString, searchResultNode)
+function searchRecords(searchString, searchResultWin, searchSource)
     local searchResults = {}
     local startTime = os.clock()
+    local results = 0
     for word, _ in pairs(SearchIndexer.tokenizeStr(searchString)) do
-       SearchIndexer.updateSearchByWord(word, searchResults)
+       results = results + SearchIndexer.updateSearchByWord(word, searchResults)
     end
 
     local librarySearchTime = os.clock()
-    updateSearchDisplay(searchResults, searchResultNode, searchString)
+    saveSearchResults(searchSource, searchResults)
+    local offset = updateSearchDisplay(searchSource, searchResultWin, 1)
     local endTime = os.clock()
     Debug.console("Lib search time: ", librarySearchTime - startTime)
     Debug.console("result update time: ", endTime - librarySearchTime)
+    Debug.console("Total results found: ", results)
     Debug.console("Total time: ", endTime - startTime)
+    return results, offset
 --     return searchResults
 end
 
-function updateSearchDisplay(searchResults, searchResultNode, searchString)
+function saveSearchResults(searchSource, searchResults)
+    local resultWeights, recordsByWeight = sortResultsByWeight(searchResults)
+    _activeSearchesMap[searchSource] = {["recordsByWeight"] = recordsByWeight, ["resultWeights"] = resultWeights }
+end
+
+function loadSearchResults(searchSource)
+    local cachedResult = _activeSearchesMap[searchSource]
+    if not cachedResult then return {}, {} end
+    return cachedResult["resultWeights"], cachedResult["recordsByWeight"]
+end
+
+function sortResultsByWeight(searchResults)
+    local resultWeights = {}
+    local recordsByWeight = {}
     for recordType, recordNodes in pairs(searchResults) do
         for recordPath, weight in pairs(recordNodes) do
-            local recordNode = DB.findNode(recordPath)
-            local outputNode = DB.createChild(searchResultNode)
-            local displayType = LibraryData.getDisplayText(recordType)
-            if (displayType or "") == "" then
-                DB.setValue(outputNode, "class", "string", recordType)
-            else
-                DB.setValue(outputNode, "class", "string", displayType)
-            end
-            local nameVal = DB.getValue(recordNode, "name", "unknown")
-            DB.setValue(outputNode, "name", "string", nameVal)
-            local linkClass = LibraryData.getRecordDisplayClass(recordType, recordPath)
-            if (linkClass or "") == "" then
-                DB.setValue(outputNode, "link", "windowreference", recordType, recordPath)
-            else
-                DB.setValue(outputNode, "link", "windowreference", linkClass, recordPath)
-            end
-            if string.find(string.lower(nameVal), searchString) then weight = weight*5 end
-            DB.setValue(outputNode, "weight", "number", weight*-1)
-            local mIdx = string.find(recordPath, "@")
-            if mIdx then
-                DB.setValue(outputNode, "moduleSrc", "string", recordPath:sub(mIdx+1))
-            else
-                DB.setValue(outputNode, "moduleSrc", "string", "Campaign")
-            end
+            if recordsByWeight[weight] == nil then recordsByWeight[weight] = {} end
+            recordsByWeight[weight][recordPath] = recordType
         end
     end
-    return true
+    for weight, _ in pairs(recordsByWeight) do
+        table.insert(resultWeights, weight)
+    end
+    table.sort(resultWeights)
+    return resultWeights, recordsByWeight
+end
+
+function getPageCount(totalRes)
+  local lastP = (totalRes % _pageLimit)
+  local trailPage = (lastP > 0 and 1 or 0)
+  return ((totalRes - lastP ) / _pageLimit ) + trailPage
+end
+
+function formatPageLabel(searchTab)
+    local activePage = searchTab.activePage.getValue()
+    local totalResults = searchTab.totalResults.getValue()
+    local pageOffset = searchTab.pageOffset.getValue()
+    return "Showing " .. (((activePage-1) * _pageLimit) + 1) .. " to " .. pageOffset .. " of " .. totalResults
+end
+
+function updateSearchDisplay(searchSource, searchResultWin, page)
+    local offset = 0
+    local pageMin = ((page-1) * _pageLimit) + 1
+    local pageMax = page * _pageLimit
+    searchResultWin.closeAll()
+    local resultWeights, recordsByWeight = loadSearchResults(searchSource)
+    if not resultWeights then return offset end
+    for _, weight in ipairs(resultWeights) do
+        for recordPath, recordType in pairs(recordsByWeight[weight]) do
+        offset = offset + 1
+            if offset >= pageMin then
+                local recordNode = DB.findNode(recordPath)
+                local resultWindow = searchResultWin.createWindow()
+                local displayType = LibraryData.getDisplayText(recordType)
+                if (displayType or "") == "" then displayType = recordType end
+                resultWindow.class.setValue(displayType)
+                local nameVal = DB.getValue(recordNode, "name", "unknown")
+                resultWindow.name.setValue(nameVal)
+                local linkClass = LibraryData.getRecordDisplayClass(recordType, recordPath)
+                if (linkClass or "") == "" then linkClass = recordType end
+                resultWindow.link.setValue(linkClass, recordPath)
+                resultWindow.weight.setValue(weight)
+                local mIdx = string.find(recordPath, "@")
+                local moduleSrc = "Campaign"
+                if mIdx then moduleSrc = recordPath:sub(mIdx+1) end
+                resultWindow.moduleSrc.setValue(moduleSrc)
+            end
+            if offset > pageMax then return pageMax end
+        end
+    end
+    return offset
 end
 
 function searchLibraryRecords(searchString)

@@ -48,17 +48,22 @@ function loadIndex()
 end
 
 function updateSearchByWord(word, searchResults)
+    local results = 0
     local hits = _forwardSearchIndex[word]
-    if (hits or "") == "" then return searchResults end
+    if (hits or "") == "" then return results end
     for nodeStr, indexData in pairs(hits) do
         local matchClass = indexData["recordType"]
-        local weight = indexData["weight"]
+        local weight = indexData["weight"] * -1
         if searchResults[matchClass] == nil then searchResults[matchClass] = {} end
-        if searchResults[matchClass][nodeStr] == nil then searchResults[matchClass][nodeStr] = 0 end
+        if searchResults[matchClass][nodeStr] == nil then
+            searchResults[matchClass][nodeStr] = 0
+            results = results + 1
+        end
         local nameVal = DB.getValue(DB.findNode(nodeStr), "name", "")
         if string.find(string.lower(nameVal), word) then weight = weight * 2 end
         searchResults[matchClass][nodeStr] = searchResults[matchClass][nodeStr] + weight
     end
+    return results
 end
 function getRecords(recordMapping)
     if (recordMapping or "") == "" then return {} end
@@ -284,11 +289,13 @@ function indexEndNode(endNode, isLibrary)
         return indexVals
     end
     local nodeType = DB.getType(endNode)
-    local nameMult = 1
-    if endNode.getName() == "name" then nameMult = 2
-    elseif endNode.getName() == "formattedtext" then nameMult = 0.5
-    end
     if (nodeType == "formattedtext") and not _indexFmt then return indexVals end
+
+    local nameMult = 1
+    if endNode.getName() == "name" then nameMult = 50
+    elseif nodeType == "formattedtext" then nameMult = 0.5
+    end
+
     local nodeVal = SearchManager.getValueOfType(nodeType, endNode)
     for m, weight in pairs(tokenizeStr(string.lower(nodeVal))) do
         indexVals[m] = {["mVal"] = mVal, ["weight"] = weight * nameMult}
