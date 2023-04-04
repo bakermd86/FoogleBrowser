@@ -104,13 +104,14 @@
                 </sortby>
                 <script>
                     function onFilter(w)
-                        local classFilter = window.filterClass.getValue()
-                        local nameFilter = window.filterName.getValue()
-                        local srcFilter = window.filterModuleSrc.getValue()
+                        local match = true
+                        local classFilter = string.lower(window.filterClass.getValue())
+                        local nameFilter = string.lower(window.filterName.getValue())
+                        local srcFilter = string.lower(window.filterModuleSrc.getValue())
                         local childNode = w.getDatabaseNode()
-                        if classFilter and not string.find(DB.getValue(childNode, "class", ""), classFilter) then return false
-                        elseif nameFilter and not string.find(DB.getValue(childNode, "name", ""), nameFilter) then return false
-                        elseif srcFilter and not string.find(DB.getValue(childNode, "moduleSrc", ""), srcFilter) then return false
+                        if classFilter and not string.find(string.lower(w.class.getValue()), classFilter) then return false
+                        elseif nameFilter and not string.find(string.lower(w.name.getValue()), nameFilter) then return false
+                        elseif srcFilter and not string.find(string.lower(w.moduleSrc.getValue()), srcFilter) then return false
                         end
                         return true
                     end
@@ -127,10 +128,7 @@
 
             <button_search_page_next />
             <button_search_page_last />
-<!--            <filter_label>-->
-<!--			    <static>Filter Class:</static>-->
-<!--            </filter_label>-->
-<!--            <filter_search name="filter" />-->
+
         </sheetdata>
     </windowclass>
 

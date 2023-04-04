@@ -1,4 +1,4 @@
-local _indexLogicVer = 3
+local _indexLogicVer = 4
 local indexAgeLimit = 5
 local _forwardSearchIndex = {}
 local _reverseSearchIndex = {}
@@ -33,12 +33,6 @@ function loadIndex()
         CampaignRegistry["indexVer"] = _indexLogicVer
     else
         indexAge = indexAge + 1
---         for mVal, nodeMatches in pairs(_forwardSearchIndex) do
---             for nodeStr, recordType in pairs(nodeMatches) do
---                 if (_reverseSearchIndex[nodeStr] == nil) then _reverseSearchIndex[nodeStr] = {} end
---                 table.insert(_reverseSearchIndex[nodeStr], mVal)
---             end
---         end
     end
     connectDBListeners()
     Debug.console("Loading index took: ", os.clock() - sTime)
@@ -293,6 +287,7 @@ function indexEndNode(endNode, isLibrary)
 
     local nameMult = 1
     if endNode.getName() == "name" then nameMult = 50
+    elseif nodeType == "string" then nameMult = 10
     elseif nodeType == "formattedtext" then nameMult = 0.5
     end
 

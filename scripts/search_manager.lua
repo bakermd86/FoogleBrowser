@@ -21,7 +21,6 @@ function searchRecords(searchString, searchResultWin, searchSource)
     Debug.console("Total results found: ", results)
     Debug.console("Total time: ", endTime - startTime)
     return results, offset
---     return searchResults
 end
 
 function saveSearchResults(searchSource, searchResults)
