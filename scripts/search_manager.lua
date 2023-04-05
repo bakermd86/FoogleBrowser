@@ -4,7 +4,7 @@ local _pageLimit = 50
 local _sTime = nil
 local _commTime = nil
 
-function searchRecords(searchString, searchResultWin, searchSource)
+function searchRecords(searchString, searchResultWin, searchSource, filterCriteria)
     local searchResults = {}
     local startTime = os.clock()
     local results = 0
@@ -14,13 +14,14 @@ function searchRecords(searchString, searchResultWin, searchSource)
 
     local librarySearchTime = os.clock()
     saveSearchResults(searchSource, searchResults)
-    local offset = updateSearchDisplay(searchSource, searchResultWin, 1)
+    local offset, filterResults = updateSearchDisplay(searchSource, searchResultWin, filterCriteria, 1)
     local endTime = os.clock()
     Debug.console("Lib search time: ", librarySearchTime - startTime)
     Debug.console("result update time: ", endTime - librarySearchTime)
     Debug.console("Total results found: ", results)
+    Debug.console("Filtered results found: ", filterResults)
     Debug.console("Total time: ", endTime - startTime)
-    return results, offset
+    return filterResults, offset
 end
 
 function saveSearchResults(searchSource, searchResults)
@@ -63,37 +64,45 @@ function formatPageLabel(searchTab)
     return "Showing " .. (((activePage-1) * _pageLimit) + 1) .. " to " .. pageOffset .. " of " .. totalResults
 end
 
-function updateSearchDisplay(searchSource, searchResultWin, page)
-    local offset = 0
+function updateSearchDisplay(searchSource, searchResultWin, filterCriteria, page)
+    local offset = -1
+    local filterResults = 0
     local pageMin = ((page-1) * _pageLimit) + 1
     local pageMax = page * _pageLimit
     searchResultWin.closeAll()
     local resultWeights, recordsByWeight = loadSearchResults(searchSource)
-    if not resultWeights then return offset end
+    if not resultWeights then return 0, 0 end
     for _, weight in ipairs(resultWeights) do
         for recordPath, recordType in pairs(recordsByWeight[weight]) do
-        offset = offset + 1
-            if offset >= pageMin then
-                local recordNode = DB.findNode(recordPath)
-                local resultWindow = searchResultWin.createWindow()
-                local displayType = LibraryData.getDisplayText(recordType)
-                if (displayType or "") == "" then displayType = recordType end
-                resultWindow.class.setValue(displayType)
-                local nameVal = DB.getValue(recordNode, "name", "unknown")
-                resultWindow.name.setValue(nameVal)
-                local linkClass = LibraryData.getRecordDisplayClass(recordType, recordPath)
-                if (linkClass or "") == "" then linkClass = recordType end
-                resultWindow.link.setValue(linkClass, recordPath)
-                resultWindow.weight.setValue(weight)
-                local mIdx = string.find(recordPath, "@")
-                local moduleSrc = "Campaign"
-                if mIdx then moduleSrc = recordPath:sub(mIdx+1) end
-                resultWindow.moduleSrc.setValue(moduleSrc)
+            local recordNode = DB.findNode(recordPath)
+
+            local displayType = LibraryData.getDisplayText(recordType)
+            if (displayType or "") == "" then displayType = recordType end
+
+            local nameVal = DB.getValue(recordNode, "name", "unknown")
+
+            local linkClass = LibraryData.getRecordDisplayClass(recordType, recordPath)
+            if (linkClass or "") == "" then linkClass = recordType end
+
+            local mIdx = string.find(recordPath, "@")
+            local moduleSrc = "Campaign"
+            if mIdx then moduleSrc = recordPath:sub(mIdx+1) end
+
+            if applySearchFilter(nameVal, displayType, moduleSrc, filterCriteria) then
+                filterResults = filterResults + 1
+                if (pageMin <= filterResults) and (filterResults <= pageMax) then
+                    local resultWindow = searchResultWin.createWindow()
+                    resultWindow.class.setValue(displayType)
+                    resultWindow.name.setValue(nameVal)
+                    resultWindow.link.setValue(linkClass, recordPath)
+                    resultWindow.weight.setValue(weight)
+                    resultWindow.moduleSrc.setValue(moduleSrc)
+                    offset = offset + 1
+                end
             end
-            if offset > pageMax then return pageMax end
         end
     end
-    return offset
+    return pageMin+offset, filterResults
 end
 
 function searchLibraryRecords(searchString)
@@ -193,4 +202,16 @@ function getAllFromModules(recordType)
         end
     end
     return nodes
+end
+
+function failFilterType(filterCriteria, inVal, filterType)
+    return filterCriteria[filterType] and not string.find(string.lower(inVal), filterCriteria[filterType])
+end
+
+function applySearchFilter(nameVal, displayType, moduleSrc, filterCriteria)
+    if failFilterType(filterCriteria, nameVal, "filterName") then return false
+    elseif failFilterType(filterCriteria, displayType, "filterClass") then return false
+    elseif failFilterType(filterCriteria, moduleSrc, "filterModuleSrc") then return false
+    end
+    return true
 end
