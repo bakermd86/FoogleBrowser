@@ -251,7 +251,8 @@ local lexicalSuffixes = {
     ["ling"] = {},
     ["ed"] = {"ing", "e"},
     ["s"] = {},
-    ["ly"] = {"e"}
+    ["ly"] = {"e"},
+    ["ion"] = {"ious"}
 }
 local lexicalPrefixes = {
     ["un"] = {},
@@ -273,7 +274,6 @@ function tokenizeStr(inStr)
         tokens[word] = 4
         for subWord in word:gmatch(subWordPat) do
             if subWord ~= word then tokens[subWord] = 2 end
---             updateWeight(subWord, 2, tokens)
         end
         for suffix, alternates in pairs(lexicalSuffixes) do
             local stem = word:gsub(suffix.."$", "")
@@ -293,21 +293,6 @@ function tokenizeStr(inStr)
                 end
             end
         end
---         local stem = word:gsub("ing$", "")
---         stem = word:gsub("ed$", "")
---         stem = word:gsub("ly$", "")
---         stem = word:gsub("s$", "")
---         if word:sub(-3) == "ing" then
---             updateWeight(word:sub(1,-4), 1, tokens)
---             updateWeight(word:sub(1,-4)..'e', 1, tokens)
---         elseif word:sub(-1)  == "s" then
---             updateWeight(word:sub(1,-2), 1, tokens)
---         elseif word:sub(-2)  == "ed" then
---             updateWeight(word:sub(1,-3), 1, tokens)
---         elseif word:sub(-2)  == "ly" then
---             updateWeight(word:sub(1,-3), 1, tokens)
---             updateWeight(word:sub(1,-2).."e", 1, tokens)
---         end
     end
     return tokens
 end
