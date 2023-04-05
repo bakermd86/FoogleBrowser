@@ -1,4 +1,4 @@
-local _indexLogicVer = 4
+local _indexLogicVer = 5
 local indexAgeLimit = 5
 local _forwardSearchIndex = {}
 local _reverseSearchIndex = {}
@@ -41,13 +41,13 @@ function loadIndex()
 	Module.addEventHandler("onModuleUnload", onModuleUnload);
 end
 
-function updateSearchByWord(word, searchResults)
+function updateSearchByWord(word, weightMod, searchResults)
     local results = 0
     local hits = _forwardSearchIndex[word]
     if (hits or "") == "" then return results end
     for nodeStr, indexData in pairs(hits) do
         local matchClass = indexData["recordType"]
-        local weight = indexData["weight"] * -1
+        local weight = indexData["weight"] * weightMod * -1
         if searchResults[matchClass] == nil then searchResults[matchClass] = {} end
         if searchResults[matchClass][nodeStr] == nil then
             searchResults[matchClass][nodeStr] = 0
@@ -246,6 +246,21 @@ end
 
 local wordMatchPat = "[a-z0-9'`]+"
 local subWordPat = "[a-z]+"
+local lexicalSuffixes = {
+    ["ing"] = {"e", "ed"},
+    ["ling"] = {},
+    ["ed"] = {"ing", "e"},
+    ["s"] = {},
+    ["ly"] = {"e"}
+}
+local lexicalPrefixes = {
+    ["un"] = {},
+    ["re"] = {},
+    ["im"] = {},
+    ["in"] = {},
+    ["pre"] = {},
+    ["post"] = {}
+}
 
 function updateWeight(word, weight, tokens)
     if tokens[word] == nil then tokens[word] = 0 end
@@ -255,23 +270,54 @@ end
 function tokenizeStr(inStr)
     local tokens = {}
     for word in inStr:gmatch(wordMatchPat) do
-        updateWeight(word, 4, tokens)
+        tokens[word] = 4
         for subWord in word:gmatch(subWordPat) do
-            updateWeight(subWord, 2, tokens)
+            if subWord ~= word then tokens[subWord] = 2 end
+--             updateWeight(subWord, 2, tokens)
         end
-        if word:sub(-3) == "ing" then
-            updateWeight(word:sub(1,-4), 1, tokens)
-            updateWeight(word:sub(1,-4)..'e', 1, tokens)
-        elseif word:sub(-1)  == "s" then
-            updateWeight(word:sub(1,-2), 1, tokens)
-        elseif word:sub(-2)  == "ed" then
-            updateWeight(word:sub(1,-3), 1, tokens)
-        elseif word:sub(-2)  == "ly" then
-            updateWeight(word:sub(1,-3), 1, tokens)
-            updateWeight(word:sub(1,-2).."e", 1, tokens)
+        for suffix, alternates in pairs(lexicalSuffixes) do
+            local stem = word:gsub(suffix.."$", "")
+            if stem ~= word then
+                tokens[stem] = 1
+                for _, newSuf in ipairs(alternates) do
+                    tokens[stem..newSuf] = 1
+                end
+            end
         end
+        for prefix, alternates in pairs(lexicalPrefixes) do
+            local tail = word:gsub("^"..prefix, "")
+            if tail ~= word then
+                tokens[tail] = 1
+                for _, newPre in ipairs(alternates) do
+                    tokens[newPre..stem] = 1
+                end
+            end
+        end
+--         local stem = word:gsub("ing$", "")
+--         stem = word:gsub("ed$", "")
+--         stem = word:gsub("ly$", "")
+--         stem = word:gsub("s$", "")
+--         if word:sub(-3) == "ing" then
+--             updateWeight(word:sub(1,-4), 1, tokens)
+--             updateWeight(word:sub(1,-4)..'e', 1, tokens)
+--         elseif word:sub(-1)  == "s" then
+--             updateWeight(word:sub(1,-2), 1, tokens)
+--         elseif word:sub(-2)  == "ed" then
+--             updateWeight(word:sub(1,-3), 1, tokens)
+--         elseif word:sub(-2)  == "ly" then
+--             updateWeight(word:sub(1,-3), 1, tokens)
+--             updateWeight(word:sub(1,-2).."e", 1, tokens)
+--         end
     end
     return tokens
+end
+
+function weightString(inStr)
+    local tokenWeights = {}
+    for word, baseWeight in pairs(tokenizeStr(inStr)) do
+        updateWeight(word, baseWeight, tokenWeights)
+    end
+    return tokenWeights
 end
 
 function indexEndNode(endNode, isLibrary)
@@ -292,7 +338,7 @@ function indexEndNode(endNode, isLibrary)
     end
 
     local nodeVal = SearchManager.getValueOfType(nodeType, endNode)
-    for m, weight in pairs(tokenizeStr(string.lower(nodeVal))) do
+    for m, weight in pairs(weightString(string.lower(nodeVal))) do
         indexVals[m] = {["mVal"] = mVal, ["weight"] = weight * nameMult}
     end
     return indexVals

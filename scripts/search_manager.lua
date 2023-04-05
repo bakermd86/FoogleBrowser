@@ -8,8 +8,8 @@ function searchRecords(searchString, searchResultWin, searchSource, filterCriter
     local searchResults = {}
     local startTime = os.clock()
     local results = 0
-    for word, _ in pairs(SearchIndexer.tokenizeStr(searchString)) do
-       results = results + SearchIndexer.updateSearchByWord(word, searchResults)
+    for word, weightMod in pairs(SearchIndexer.tokenizeStr(searchString)) do
+       results = results + SearchIndexer.updateSearchByWord(word, weightMod, searchResults)
     end
 
     local librarySearchTime = os.clock()
