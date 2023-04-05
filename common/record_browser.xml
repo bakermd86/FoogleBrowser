@@ -2,7 +2,7 @@
 <root>
     <windowclass name="record_browser">
 		<placement>
-			<size width="700" height="250" />
+			<size width="700" height="600" />
 		</placement>
 		<sizelimits>
 			<minimum width="250" height="200" />
@@ -27,6 +27,8 @@
 
     <windowclass name="search_tab">
         <frame name="search_result_frame" offset="10,0,10,10" />
+        <script file="scripts/search_tab.lua">
+        </script>
         <sheetdata>
             <genericcontrol>
                 <anchored width="200" height="40">
@@ -35,6 +37,10 @@
                 </anchored>
                 <icon>fgsearch_icon</icon>
             </genericcontrol>
+            <hidden_num name="activePage" />
+            <hidden_num name="totalResults" />
+            <hidden_num name="pageOffset" />
+
             <stringfield name="searchBox">
 			    <frame name="fieldlight" offset="7,5,7,5" />
                 <anchored height="25">
@@ -44,28 +50,7 @@
                 </anchored>
                 <script>
                     function onEnter()
-                        local searchString = getValue()
-                        local searchResults = SearchManager.searchRecords(searchString)
-                        DB.deleteChildren(window.getDatabaseNode(), "searchResult")
-                        for recordType, recordNodes in pairs(searchResults) do
-                            for _, recordNode in pairs(recordNodes) do
-                                local w = window.searchResult.createWindow()
-                                local displayType = LibraryData.getDisplayText(recordType)
-                                if (displayType or "") == "" then
-                                    w.class.setValue(recordType)
-                                else
-                                    w.class.setValue(displayType)
-                                end
-                                w.name.setValue(DB.getValue(recordNode, "name", "unknown"))
-                                local linkClass = LibraryData.getRecordDisplayClass(recordType, DB.getPath(recordNode))
-                                if (linkClass or "") == "" then
-                                    w.link.setValue(recordType, DB.getPath(recordNode))
-                                else
-                                    w.link.setValue(linkClass, DB.getPath(recordNode))
-                                end
-                            end
-                        end
-                        return true
+                        window.performSearch()
                     end
                 </script>
             </stringfield>
@@ -73,33 +58,77 @@
             <search_win_col_header>
                 <static> Record Class </static>
             </search_win_col_header>
+            <search_col_filter name="filterClass"/>
+
             <search_win_col_header>
                 <static> Record Name </static>
+                <anchored>
+                    <right parent="" offset="-190"/>
+                </anchored>
             </search_win_col_header>
+            <search_col_filter name="filterName">
+                <anchored>
+                    <right parent="" offset="-210"/>
+                </anchored>
+            </search_col_filter>
+
+            <search_win_col_header>
+                <static> Record Source </static>
+                <anchored>
+                    <right parent="" offset="-5"/>
+                </anchored>
+            </search_win_col_header>
+            <search_col_filter name="filterModuleSrc">
+                <anchored>
+                    <right parent="" offset="-28"/>
+				    <top relation="relative"/>
+                </anchored>
+            </search_col_filter>
+
             <windowlist name="searchResult">
                 <anchored>
-                    <top offset="125" />
                     <left offset="30" />
                     <right offset="-30" />
-                    <bottom offset="-25"/>
+                    <bottom offset="-22"/>
+                    <top parent="colAnchor" anchor="bottom" relation="relative" offset="9" />
                 </anchored>
                 <class>search_result_entry</class>
+                <sortby>
+                    <control>weight</control>
+                </sortby>
                 <sortby>
                     <control>class</control>
                 </sortby>
                 <sortby>
                     <control>name</control>
                 </sortby>
-                <datasource>.searchResult</datasource>
-				<filter><control>filter</control></filter>
-				<filteron><control>class</control></filteron>
+                <script>
+                    function onFilter(w)
+                        local match = true
+                        local classFilter = string.lower(window.filterClass.getValue())
+                        local nameFilter = string.lower(window.filterName.getValue())
+                        local srcFilter = string.lower(window.filterModuleSrc.getValue())
+                        local childNode = w.getDatabaseNode()
+                        if classFilter and not string.find(string.lower(w.class.getValue()), classFilter) then return false
+                        elseif nameFilter and not string.find(string.lower(w.name.getValue()), nameFilter) then return false
+                        elseif srcFilter and not string.find(string.lower(w.moduleSrc.getValue()), srcFilter) then return false
+                        end
+                        return true
+                    end
+                </script>
             </windowlist>
             <scrollbar>
                 <anchored to="searchResult" />
                 <target>searchResult</target>
 		    </scrollbar>
-            <filter_search_label/>
-            <filter_search name="filter" />
+
+            <button_page_label/>
+            <button_search_page_prev />
+            <button_search_page_first />
+
+            <button_search_page_next />
+            <button_search_page_last />
+
         </sheetdata>
     </windowclass>
 
@@ -108,7 +137,7 @@
             <genericcontrol name="resAnchor">
                 <anchored position="insidetopleft" offset="2,2" height="20"/>
             </genericcontrol>
-			<linkfield name="link" >
+			<linkcontrol name="link" >
                 <anchored to="resAnchor" width="18" height="18">
                     <top />
                     <left anchor="right" relation="relative"/>
@@ -125,13 +154,19 @@
                         return true
                     end
                 </script>
-            </linkfield>
+            </linkcontrol>
 			<search_res_text name="class" />
 			<search_res_text name="name" >
                 <anchored>
-                    <right parent="" offset="2"/>
+                    <right parent="" offset="-160"/>
                 </anchored>
             </search_res_text>
+			<search_res_text name="moduleSrc" >
+                <anchored>
+                    <right parent="" offset="-5"/>
+                </anchored>
+            </search_res_text>
+            <hidden_num_c name="weight" />
 		</sheetdata>
     </windowclass>
 
@@ -160,4 +195,13 @@
             <browser_title_string name="name"/>
 		</sheetdata>
 	</windowclass>
+
+    <windowclass name="reindex_search">
+        <script>
+            function onInit()
+                SearchIndexer.buildIndex()
+                self.close()
+            end
+        </script>
+    </windowclass>
 </root>
