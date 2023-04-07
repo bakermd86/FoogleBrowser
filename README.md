@@ -44,3 +44,6 @@ save option in the radial menu which will copy the dynamic browser to a persiste
 browser:
 
 ![](doc/5e_usage_example.gif)
+
+## Search Features
+

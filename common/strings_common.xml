@@ -7,5 +7,7 @@
     <string name="label_option_INDEX_MODULES">Index Modules</string>
     <string name="label_option_INDEX_REFERENCE">Index Reference Material</string>
     <string name="label_option_INDEX_FMT_TEXT">Index Formatted Text</string>
+    <string name="label_option_INDEX_SIMPLE">Basic Indexing</string>
+    <string name="label_option_INDEX_PERSIST">Persist Campaign Index</string>
 
 </root>

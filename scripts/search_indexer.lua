@@ -6,13 +6,20 @@ local _indexedModules = {}
 local INDEX_MODULES = "INDEX_MODULES"
 local INDEX_REFERENCE = "INDEX_REFERENCE"
 local INDEX_FMT_TEXT = "INDEX_FMT_TEXT"
+local INDEX_SIMPLE = "INDEX_SIMPLE"
+local INDEX_PERSIST = "INDEX_PERSIST"
 local _indexFmt = nil
+local _indexSimple = nil
 
 function onInit()
     OptionsManager.registerButton("label_option_rebuild_index", "reindex_search", "")
-    for _, o in ipairs({INDEX_MODULES, INDEX_REFERENCE, INDEX_FMT_TEXT}) do
+    for _, o in ipairs({INDEX_SIMPLE, INDEX_MODULES}) do
         OptionsManager.registerOption2(o, true, "option_header_search_options", "label_option_"..o, "option_entry_cycler",
         { labels = "option_val_on", values = "on", baselabel = "option_val_off", baseval = "off", default = "on" })
+    end
+    for _, o in ipairs({INDEX_PERSIST, INDEX_REFERENCE, INDEX_FMT_TEXT}) do
+        OptionsManager.registerOption2(o, true, "option_header_search_options", "label_option_"..o, "option_entry_cycler",
+        { labels = "option_val_on", values = "on", baselabel = "option_val_off", baseval = "off", default = "off" })
     end
 --     CampaignRegistry["storedSearchIndex"] = nil
 --     Interface.onDesktopInit = loadIndex;
@@ -21,22 +28,26 @@ end
 
 function loadIndex()
     local sTime = os.clock()
-    _forwardSearchIndex = CampaignRegistry["storedSearchIndex"]
-    _reverseSearchIndex = CampaignRegistry["reverseSearchIndex"]
-    _indexedModules = CampaignRegistry["indexedModules"]
-    local indexAge = CampaignRegistry["indexAge"]
-    local indexVer = CampaignRegistry["indexVer"]
-    if (indexAge or "") == "" then indexAge = 1 end
-    if ((_forwardSearchIndex or "") == "") or (indexAge > indexAgeLimit) or (_indexLogicVer ~= indexVer) then
+    if OptionsManager.getOption(INDEX_PERSIST) == "off" then
         buildIndex()
-        indexAge = 1
-        CampaignRegistry["indexVer"] = _indexLogicVer
     else
-        indexAge = indexAge + 1
+        _forwardSearchIndex = CampaignRegistry["storedSearchIndex"]
+        _reverseSearchIndex = CampaignRegistry["reverseSearchIndex"]
+        _indexedModules = CampaignRegistry["indexedModules"]
+        local indexAge = CampaignRegistry["indexAge"]
+        local indexVer = CampaignRegistry["indexVer"]
+        if (indexAge or "") == "" then indexAge = 1 end
+        if ((_forwardSearchIndex or "") == "") or (indexAge > indexAgeLimit) or (_indexLogicVer ~= indexVer) then
+            buildIndex()
+            indexAge = 1
+            CampaignRegistry["indexVer"] = _indexLogicVer
+        else
+            indexAge = indexAge + 1
+        end
+        CampaignRegistry["indexAge"] = indexAge
     end
     connectDBListeners()
     Debug.console("Loading index took: ", os.clock() - sTime)
-    CampaignRegistry["indexAge"] = indexAge
 	Module.addEventHandler("onModuleLoad", onModuleLoad);
 	Module.addEventHandler("onModuleUnload", onModuleUnload);
 end
@@ -61,7 +72,7 @@ function updateSearchByWord(word, weightMod, searchResults)
 end
 function getRecords(recordMapping)
     if (recordMapping or "") == "" then return {} end
-    if OptionsManager.getOption(INDEX_MODULES) == "on" then
+    if OptionsManager.getOption(INDEX_MODULES) == "on" and OptionsManager.getOption(INDEX_SIMPLE) == "off"then
         return SearchManager.getAllFromModules(recordMapping)
     else
         local nodes = {}
@@ -83,13 +94,20 @@ function processNode(recordNode, recordType)
 end
 
 function saveIndex()
-    CampaignRegistry["indexedModules"] = _indexedModules
-    CampaignRegistry["storedSearchIndex"] = _forwardSearchIndex
-    CampaignRegistry["reverseSearchIndex"] = _reverseSearchIndex
+    if OptionsManager.getOption(INDEX_PERSIST) == "off" then
+        CampaignRegistry["indexedModules"] = {}
+        CampaignRegistry["storedSearchIndex"] = {}
+        CampaignRegistry["reverseSearchIndex"] = {}
+    else
+        CampaignRegistry["indexedModules"] = _indexedModules
+        CampaignRegistry["storedSearchIndex"] = _forwardSearchIndex
+        CampaignRegistry["reverseSearchIndex"] = _reverseSearchIndex
+    end
 end
 
 function buildIndex()
     _indexFmt = OptionsManager.getOption(INDEX_FMT_TEXT) == "on"
+    _indexSimple = OptionsManager.getOption(INDEX_SIMPLE) == "on"
     _forwardSearchIndex = {}
     _reverseSearchIndex = {}
     _indexedModules = {}
@@ -101,7 +119,7 @@ function buildIndex()
              end
         end
     end
-    if OptionsManager.getOption(INDEX_REFERENCE) == "on" then
+    if OptionsManager.getOption(INDEX_REFERENCE) == "on" and OptionsManager.getOption(INDEX_SIMPLE) == "off" then
         for libraryNode, _  in pairs(SearchManager.getAllFromModules("library")) do
             for mVal, tokens in pairs(indexLibraryNode(libraryNode)) do
                 local mLibNode = tokens["mVal"]
@@ -114,7 +132,9 @@ function buildIndex()
     if OptionsManager.getOption(INDEX_MODULES) == "on" then
         for _, module in ipairs(Module.getModules()) do
             Debug.console("Loaded module: ", module, _)
-            _indexedModules[module] = Module.getModuleInfo(module)["loaded"]
+            if Module.getModuleInfo(module)["loaded"] then
+                onModuleLoad(module)
+            end
         end
     end
     saveIndex()
@@ -189,6 +209,7 @@ end
 
 function reindexNode(nodeChanged)
     _indexFmt = OptionsManager.getOption(INDEX_FMT_TEXT) == "on"
+    _indexSimple = OptionsManager.getOption(INDEX_SIMPLE) == "on"
     local sTime = os.clock()
     local nodeStr = DB.getPath(nodeChanged)
     local recordType = LibraryData.getRecordTypeFromRecordPath(nodeStr)
@@ -272,24 +293,26 @@ function tokenizeStr(inStr)
     local tokens = {}
     for word in inStr:gmatch(wordMatchPat) do
         tokens[word] = 4
-        for subWord in word:gmatch(subWordPat) do
-            if subWord ~= word then tokens[subWord] = 2 end
-        end
-        for suffix, alternates in pairs(lexicalSuffixes) do
-            local stem = word:gsub(suffix.."$", "")
-            if stem ~= word then
-                tokens[stem] = 1
-                for _, newSuf in ipairs(alternates) do
-                    tokens[stem..newSuf] = 1
+        if not _indexSimple then
+            for subWord in word:gmatch(subWordPat) do
+                if subWord ~= word then tokens[subWord] = 2 end
+            end
+            for suffix, alternates in pairs(lexicalSuffixes) do
+                local stem = word:gsub(suffix.."$", "")
+                if stem ~= word then
+                    tokens[stem] = 1
+                    for _, newSuf in ipairs(alternates) do
+                        tokens[stem..newSuf] = 1
+                    end
                 end
             end
-        end
-        for prefix, alternates in pairs(lexicalPrefixes) do
-            local tail = word:gsub("^"..prefix, "")
-            if tail ~= word then
-                tokens[tail] = 1
-                for _, newPre in ipairs(alternates) do
-                    tokens[newPre..stem] = 1
+            for prefix, alternates in pairs(lexicalPrefixes) do
+                local tail = word:gsub("^"..prefix, "")
+                if tail ~= word then
+                    tokens[tail] = 1
+                    for _, newPre in ipairs(alternates) do
+                        tokens[newPre..stem] = 1
+                    end
                 end
             end
         end
@@ -314,7 +337,10 @@ function indexEndNode(endNode, isLibrary)
         return indexVals
     end
     local nodeType = DB.getType(endNode)
-    if (nodeType == "formattedtext") and not _indexFmt then return indexVals end
+    if (nodeType == "formattedtext") and not _indexFmt then return indexVals
+    elseif _indexSimple and (nodeType ~= "string") then
+        return indexVals
+    end
 
     local nameMult = 1
     if endNode.getName() == "name" then nameMult = 50
