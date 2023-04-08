@@ -204,4 +204,92 @@
             end
         </script>
     </windowclass>
+
+    <windowclass name="module_selection">
+		<frame>utilitybox</frame>
+		<placement>
+			<size width="400" height="250" />
+		</placement>
+		<sizelimits>
+			<minimum width="250" height="250" />
+			<dynamic />
+		</sizelimits>
+        <script file="scripts/module_selection.lua"/>
+        <sheetdata>
+
+            <windowlist name="modules">
+            <frame name="groupbox" offset="15,30,15,10" />
+                <class>module_selector</class>
+                <anchored >
+                    <top offset="70" />
+                    <left offset="30" />
+                    <right offset="-30" />
+                    <bottom offset="-60"/>
+                </anchored>
+            </windowlist>
+
+            <module_header_anchor />
+            <module_sel_header>
+                <anchored>
+                    <right parent="" offset="-265"/>
+                </anchored>
+                <static> Module Name </static>
+            </module_sel_header>
+            <module_sel_header>
+                <anchored width="80" />
+                <static>Records</static>
+            </module_sel_header>
+            <module_sel_header>
+                <anchored width="150" />
+                <static> Indexing Time </static>
+            </module_sel_header>
+
+            <button_text name="cancel_button">
+			    <state textres="button_cancel" />
+                <anchored position="insidebottomleft" offset="25,25" width="75" height="18"/>
+                <script>
+                    function onButtonPress()
+                        window.close()
+                    end
+                </script>
+            </button_text>
+            <button_text name="close_button">
+			    <state textres="button_save_and_close" />
+                <anchored position="insidebottomright" offset="25,25" width="75" height="18"/>
+                <script>
+                    function onButtonPress()
+                        window.saveAndClose()
+                    end
+                </script>
+            </button_text>
+
+            <resize_utilitybox />
+            <close_utilitybox />
+        </sheetdata>
+    </windowclass>
+
+    <windowclass name="module_selector">
+        <sheetdata>
+            <genericcontrol name="rowAnchor">
+                <anchored position="insidetopleft" offset="1,1" height="0" width="0"/>
+            </genericcontrol>
+            <button_checkbox name="selected">
+                <anchored to="rowAnchor" height="18" width="18">
+                    <top />
+                    <left anchor="right" relation="relative"/>
+                </anchored>
+            </button_checkbox>
+            <module_sel_label name="moduleName">
+                <anchored>
+                    <right parent="" offset="-215"/>
+                </anchored>
+            </module_sel_label>
+            <module_sel_label name="lastIndexRecords">
+                <anchored width="60" />
+            </module_sel_label>
+            <module_sel_label name="lastIndexTime">
+                <anchored width="150" />
+            </module_sel_label>
+        </sheetdata>
+    </windowclass>
 </root>

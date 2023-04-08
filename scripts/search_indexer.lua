@@ -3,21 +3,26 @@ local indexAgeLimit = 5
 local _forwardSearchIndex = {}
 local _reverseSearchIndex = {}
 local _indexedModules = {}
-local INDEX_MODULES = "INDEX_MODULES"
-local INDEX_REFERENCE = "INDEX_REFERENCE"
+local _moduleIndexingData = {}
+local MODULE_IDX_DATA = "moduleIndexingData"
+-- local INDEX_MODULES = "INDEX_MODULES"
 local INDEX_FMT_TEXT = "INDEX_FMT_TEXT"
+local INDEX_NON_TEXT = "INDEX_NON_TEXT"
 local INDEX_SIMPLE = "INDEX_SIMPLE"
-local INDEX_PERSIST = "INDEX_PERSIST"
+local INDEX_TIMEOUT = "INDEX_TIMEOUT"
+-- local INDEX_PERSIST = "INDEX_PERSIST"
 local _indexFmt = nil
 local _indexSimple = nil
+local _indexStartTime = nil
 
 function onInit()
     OptionsManager.registerButton("label_option_rebuild_index", "reindex_search", "")
-    for _, o in ipairs({INDEX_SIMPLE, INDEX_MODULES}) do
+    OptionsManager.registerButton("label_option_module_selection", "module_selection", "")
+    for _, o in ipairs({INDEX_SIMPLE, INDEX_FMT_TEXT}) do
         OptionsManager.registerOption2(o, true, "option_header_search_options", "label_option_"..o, "option_entry_cycler",
         { labels = "option_val_on", values = "on", baselabel = "option_val_off", baseval = "off", default = "on" })
     end
-    for _, o in ipairs({INDEX_PERSIST, INDEX_REFERENCE, INDEX_FMT_TEXT}) do
+    for _, o in ipairs({INDEX_NON_TEXT}) do
         OptionsManager.registerOption2(o, true, "option_header_search_options", "label_option_"..o, "option_entry_cycler",
         { labels = "option_val_on", values = "on", baselabel = "option_val_off", baseval = "off", default = "off" })
     end
@@ -26,28 +31,11 @@ function onInit()
     loadIndex()
 end
 
+
 function loadIndex()
-    local sTime = os.clock()
-    if OptionsManager.getOption(INDEX_PERSIST) == "off" then
-        buildIndex()
-    else
-        _forwardSearchIndex = CampaignRegistry["storedSearchIndex"]
-        _reverseSearchIndex = CampaignRegistry["reverseSearchIndex"]
-        _indexedModules = CampaignRegistry["indexedModules"]
-        local indexAge = CampaignRegistry["indexAge"]
-        local indexVer = CampaignRegistry["indexVer"]
-        if (indexAge or "") == "" then indexAge = 1 end
-        if ((_forwardSearchIndex or "") == "") or (indexAge > indexAgeLimit) or (_indexLogicVer ~= indexVer) then
-            buildIndex()
-            indexAge = 1
-            CampaignRegistry["indexVer"] = _indexLogicVer
-        else
-            indexAge = indexAge + 1
-        end
-        CampaignRegistry["indexAge"] = indexAge
-    end
+    if (CampaignRegistry[MODULE_IDX_DATA] or "") ~= "" then _moduleIndexingData = CampaignRegistry[MODULE_IDX_DATA] end
+    buildIndex()
     connectDBListeners()
-    Debug.console("Loading index took: ", os.clock() - sTime)
 	Module.addEventHandler("onModuleLoad", onModuleLoad);
 	Module.addEventHandler("onModuleUnload", onModuleUnload);
 end
@@ -70,18 +58,6 @@ function updateSearchByWord(word, weightMod, searchResults)
     end
     return results
 end
-function getRecords(recordMapping)
-    if (recordMapping or "") == "" then return {} end
-    if OptionsManager.getOption(INDEX_MODULES) == "on" and OptionsManager.getOption(INDEX_SIMPLE) == "off"then
-        return SearchManager.getAllFromModules(recordMapping)
-    else
-        local nodes = {}
-        for name, node in pairs(DB.getChildren(recordMapping)) do
-            nodes[node] = ""
-        end
-        return nodes
-    end
-end
 
 function processNode(recordNode, recordType)
     local nodeStr = DB.getPath(recordNode)
@@ -94,15 +70,11 @@ function processNode(recordNode, recordType)
 end
 
 function saveIndex()
-    if OptionsManager.getOption(INDEX_PERSIST) == "off" then
-        CampaignRegistry["indexedModules"] = {}
-        CampaignRegistry["storedSearchIndex"] = {}
-        CampaignRegistry["reverseSearchIndex"] = {}
-    else
-        CampaignRegistry["indexedModules"] = _indexedModules
-        CampaignRegistry["storedSearchIndex"] = _forwardSearchIndex
-        CampaignRegistry["reverseSearchIndex"] = _reverseSearchIndex
-    end
+    CampaignRegistry["indexedModules"] = nil
+    CampaignRegistry["storedSearchIndex"] = nil
+    CampaignRegistry["reverseSearchIndex"] = nil
+    CampaignRegistry["indexAge"] = nil
+    CampaignRegistry["indexVer"] = nil
 end
 
 function buildIndex()
@@ -111,49 +83,92 @@ function buildIndex()
     _forwardSearchIndex = {}
     _reverseSearchIndex = {}
     _indexedModules = {}
-    local sTime = os.clock()
+    _indexStartTime = os.clock()
+
+    buildCampaignIndex()
+    local recordIdxTime = os.clock()
+
+    buildLibraryReferenceIndex()
+    local refIdxTime = os.clock()
+
+    buildModuleIndex()
+    local buildTime = os.clock()
+    saveIndex()
+    Debug.console("SearchIndexer.recordIdxTime: " .. recordIdxTime - _indexStartTime)
+    Debug.console("SearchIndexer.refIdxTime" .. refIdxTime - recordIdxTime)
+    Debug.console("SearchIndexer.moduleIdxTime" .. buildTime - refIdxTime)
+    Debug.console("SearchIndexer.buildIndexTotal: " .. buildTime - _indexStartTime)
+    Debug.console("SearchIndexer.saveIndex: " .. os.clock() - _indexStartTime)
+end
+
+function buildCampaignIndex()
     for _, recordType in pairs(LibraryData.getRecordTypes()) do
         for _, recordMapping in ipairs(LibraryData.getMappings(recordType)) do
-            for recordNode, module  in pairs(getRecords(recordMapping)) do
+            for name, recordNode  in pairs(DB.getChildren(recordMapping)) do
                 processNode(recordNode, recordType)
              end
         end
     end
-    if OptionsManager.getOption(INDEX_REFERENCE) == "on" and OptionsManager.getOption(INDEX_SIMPLE) == "off" then
-        for libraryNode, _  in pairs(SearchManager.getAllFromModules("library")) do
-            for mVal, tokens in pairs(indexLibraryNode(libraryNode)) do
-                local mLibNode = tokens["mVal"]
-                if (_forwardSearchIndex[mVal] == nil) then _forwardSearchIndex[mVal] = {} end
-                local matchClass, _ = DB.getValue(mLibNode, "librarylink")
-                _forwardSearchIndex[mVal][mLibNode] = { ["recordType"] = matchClass, ["weight"] = tokens["weight"] }
-            end
+end
+
+function buildLibraryReferenceIndex()
+    for libraryNode, _  in pairs(SearchManager.getAllFromModules("library")) do
+        for mVal, tokens in pairs(indexLibraryNode(libraryNode)) do
+            local mLibNode = tokens["mVal"]
+            if (_forwardSearchIndex[mVal] == nil) then _forwardSearchIndex[mVal] = {} end
+            local matchClass, _ = DB.getValue(mLibNode, "librarylink")
+            _forwardSearchIndex[mVal][mLibNode] = { ["recordType"] = matchClass, ["weight"] = tokens["weight"] }
         end
     end
-    if OptionsManager.getOption(INDEX_MODULES) == "on" then
-        for _, module in ipairs(Module.getModules()) do
-            Debug.console("Loaded module: ", module, _)
-            if Module.getModuleInfo(module)["loaded"] then
-                onModuleLoad(module)
-            end
+end
+
+function buildModuleIndex()
+    _indexFmt = OptionsManager.getOption(INDEX_FMT_TEXT) == "on"
+    _indexSimple = OptionsManager.getOption(INDEX_SIMPLE) == "on"
+    for _, module in ipairs(Module.getModules()) do
+        if Module.getModuleInfo(module)["loaded"] then
+            Debug.console("Loaded module: " .. module, _)
+            onModuleLoad(module)
         end
     end
-    saveIndex()
-    Debug.console("SearchIndexer.buildIndex: ", os.clock() - sTime)
+end
+
+function getModuleData(module)
+    if _moduleIndexingData[module] then return _moduleIndexingData[module]
+    else return {} end
+end
+
+function moduleIndexed(module)
+    local moduleData = getModuleData(module)
+    if (moduleData or "") == "" then return false end
+    return moduleData['isIndexed'] == 1
+end
+
+function setModuleData(module, isIndexed, lastIdxTime, lastIdxRecords)
+    _moduleIndexingData[module] = {
+        ['isIndexed'] =  isIndexed,
+        ['lastIdxTime'] = lastIdxTime,
+        ['lastIdxRecords'] = lastIdxRecords
+    }
+    CampaignRegistry[MODULE_IDX_DATA] = _moduleIndexingData
 end
 
 function onModuleLoad(module)
-    if (OptionsManager.getOption(INDEX_MODULES) == "off") or (_indexedModules[module]) then return end
+    if (not moduleIndexed(module)) or (_indexedModules[module]) then return end
     local sTime = os.clock()
+    local recordCount = 0
     for _, recordType in pairs(LibraryData.getRecordTypes()) do
         for _, recordMapping in ipairs(LibraryData.getMappings(recordType)) do
             for _, recordNode in pairs(DB.getChildren(recordMapping .. "@" .. module)) do
                 processNode(recordNode, recordType)
+                recordCount = recordCount + 1
             end
         end
     end
     _indexedModules[module] = true
     saveIndex()
-    Debug.console("Indexing module " .. module .. " took ", os.clock() - sTime)
+    setModuleData(module, 1, os.clock() - sTime, recordCount)
+    Debug.console("Indexing module " .. module .. " took " .. os.clock() - sTime)
 end
 
 function onModuleUnload(module)
@@ -174,23 +189,21 @@ function onModuleUnload(module)
     end
     _indexedModules[module] = nil
     saveIndex()
-    Debug.console("Clearing index for module " .. module .. " took ", os.clock() - sTime)
+    Debug.console("Clearing index for module " .. module .. " took " .. os.clock() - sTime)
 end
 
 function connectDBListeners()
     for _, recordType in pairs(LibraryData.getRecordTypes()) do
         for _, recordMapping in ipairs(LibraryData.getMappings(recordType)) do
             connectRecordTypeListener(recordMapping)
-            for recordNode, module  in pairs(getRecords(recordMapping)) do
-                local isModule = module ~= ""
-                connectNodeListener(DB.getPath(recordNode), isModule)
+            for _, recordNode  in pairs(DB.getChildren(recordMapping)) do
+                connectNodeListener(DB.getPath(recordNode), false)
             end
         end
     end
 end
 
 function connectRecordTypeListener(recordMapping)
-    Debug.console(recordMapping)
     DB.addHandler(recordMapping, "onChildAdded", indexNewNode)
 end
 

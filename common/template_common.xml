@@ -331,4 +331,31 @@
 			<icon normal="button_page_start"/>
 		</button_search_paginate>
 	</template>
+
+	<template name="module_header_anchor">
+		<genericcontrol name="headerAnchor">
+			<anchored position="insidetopleft" offset="50, 50" />
+		</genericcontrol>
+	</template>
+
+	<template name="module_sel_header">
+		<label>
+			<anchored to="headerAnchor" height="20">
+				<top />
+				<left anchor="right" relation="relative"/>
+			</anchored>
+		</label>
+	</template>
+
+
+	<template name="module_sel_label">
+		<label>
+			<anchored to="rowAnchor" height="18" >
+				<top />
+				<left anchor="right" relation="relative" offset="2"/>
+			</anchored>
+			<font>reference-r</font>
+			<empty>0</empty>
+		</label>
+	</template>
 </root>
