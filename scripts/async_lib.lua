@@ -6,6 +6,7 @@ local _activeAsyncResults = {}
 local _asyncCallCount = {}
 local _hookedWindows = {}
 local _asyncStartTimes = {}
+local _activeCall = ""
 local _asyncActive = false
 local _asyncBase = "ASYNC_BASE_"
 
@@ -45,17 +46,15 @@ function eventLoop()
     while os.clock() - sTime < 0.010 do
         local finishedJobs = {}
         local asyncCount = 0
-        for callName, callArgs in pairs(_activeAsyncArgs) do
-            if handleAsyncOOB(callName, callArgs) then
-                asyncCount = asyncCount + 1
-            else
-                table.insert(finishedJobs, callName)
-            end
+        if (_activeCall or "") == "" then
+            _activeCall = table.remove(_pendingCalls)
+            _asyncStartTimes[_activeCall] = os.clock()
         end
-        for _, callName in ipairs(finishedJobs) do
-            asyncCallComplete(callName)
+        local callArgs = _activeAsyncArgs[_activeCall]
+        if not handleAsyncOOB(_activeCall, callArgs) then
+            asyncCallComplete(_activeCall)
         end
-        if asyncCount == 0 then
+        if #_pendingCalls == 0 then
             unHookDesktop()
             return false
         end
@@ -64,6 +63,7 @@ function eventLoop()
 end
 
 function asyncCallComplete(callName)
+    _activeCall = ""
     _activeAsyncArgs[callName] = nil
     _asyncFunctions[callName] = nil
     local asyncResults = _activeAsyncResults[callName]
@@ -93,10 +93,10 @@ end
 function scheduleAsync(callName, targetFn, callArgs, callbackFn)
     if (callArgs or "") == "" then return end
     Debug.chat("Scheduling async call: ".. callName, #callArgs)
+    table.insert(_pendingCalls, callName)
     _asyncFunctions[callName] = targetFn
     _activeAsyncArgs[callName] = callArgs
     _resultCallbacks[callName] = callbackFn
-    _asyncStartTimes[callName] = os.clock()
     _asyncCallCount[callName] = #callArgs
     _activeAsyncResults[callName] = {}
 end
