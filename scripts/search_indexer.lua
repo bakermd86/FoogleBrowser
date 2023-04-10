@@ -96,32 +96,19 @@ function buildIndex()
     _reverseSearchIndex = {}
     _indexedModules = {}
     _indexStartTime = os.clock()
-
---     buildCampaignIndex()
---     local recordIdxTime = os.clock()
-
-    buildLibraryReferenceIndex()
-    local refIdxTime = os.clock()
-
---     buildModuleIndex()
---     local buildTime = os.clock()
---     saveIndex()
     local nodesToIndex = getIndexNodesAsync()
-    local modulesToIndex = getModuleNodesAsync()
-    AsyncLib.scheduleAsync("campaignNodesIndex", processNodeAsync, nodesToIndex, handleModuleIndexRes)
-    for module, moduleNodes in pairs(modulesToIndex) do
-        AsyncLib.scheduleAsync(module .. "NodesIndex", processNodeAsync, moduleNodes, handleModuleIndexRes)
-    end
-
---     Debug.console("SearchIndexer.recordIdxTime: " .. recordIdxTime - _indexStartTime)
---     Debug.console("SearchIndexer.refIdxTime" .. refIdxTime - recordIdxTime)
---     Debug.console("SearchIndexer.moduleIdxTime" .. buildTime - refIdxTime)
---     Debug.console("SearchIndexer.buildIndexTotal: " .. buildTime - _indexStartTime)
---     Debug.console("SearchIndexer.buildIndex: " .. os.clock() - _indexStartTime)
+    local libraryNodesToIndex = getLibraryNodesAsync()
+    AsyncLib.scheduleAsync("campaignNodesIndex", processNodeAsync, nodesToIndex)
+    AsyncLib.scheduleAsync("libraryNodesIndex", buildLibraryReferenceIndexAsync, libraryNodesToIndex)
+    getModuleNodesAsync()
+    AsyncLib.startAsync()
 end
 
 function handleModuleIndexRes(callName, asyncResults, asyncCount, asyncTime)
-    Debug.chat("Indexing job " .. callName .. " took " .. asyncTime .. " seconds to index " .. asyncCount .. " records")
+    local moduleName = callName:sub(1,-11)
+    Debug.chat("Indexing module " .. moduleName .. " took " .. asyncTime .. " seconds to index " .. asyncCount .. " records")
+    _indexedModules[moduleName] = true
+    setModuleData(moduleName, 1, asyncTime, asyncCount)
 end
 
 function getIndexNodesAsync()
@@ -130,7 +117,6 @@ function getIndexNodesAsync()
         for _, recordMapping in ipairs(LibraryData.getMappings(recordType)) do
             for name, recordNode  in pairs(DB.getChildren(recordMapping)) do
                 table.insert(nodesToIndex, {["recordNode"] = DB.getPath(recordNode), ["recordType"] = recordType})
---                 Debug.chat(DB.getPath(recordNode), #nodesToIndex)
              end
         end
     end
@@ -138,24 +124,11 @@ function getIndexNodesAsync()
 end
 
 function getModuleNodesAsync()
-    local modulesToIndex = {}
     for _, module in ipairs(Module.getModules()) do
         if Module.getModuleInfo(module)["loaded"] then
-            if (moduleIndexed(module)) and not (_indexedModules[module]) then
-                local moduleNodes = {}
-                for _, recordType in pairs(LibraryData.getRecordTypes()) do
-                    for _, recordMapping in ipairs(LibraryData.getMappings(recordType)) do
-                        for _, recordNode in pairs(DB.getChildren(recordMapping .. "@" .. module)) do
-                            table.insert(moduleNodes, {["recordNode"] = DB.getPath(recordNode), ["recordType"] = recordType})
---                             Debug.chat(DB.getPath(recordNode), #nodesToIndex)
-                        end
-                    end
-                end
-                modulesToIndex[module] = moduleNodes
-            end
+            onModuleLoad(module)
         end
     end
-    return modulesToIndex
 end
 
 function buildCampaignIndex()
@@ -165,6 +138,23 @@ function buildCampaignIndex()
                 processNode(recordNode, recordType)
              end
         end
+    end
+end
+
+function getLibraryNodesAsync()
+    local libraryNodes = {}
+    for libraryNode, _  in pairs(SearchManager.getAllFromModules("library")) do
+        table.insert(libraryNodes, libraryNode)
+    end
+    return libraryNodes
+end
+
+function buildLibraryReferenceIndexAsync(libraryNode)
+    for mVal, tokens in pairs(indexLibraryNode(libraryNode)) do
+        local mLibNode = tokens["mVal"]
+        if (_forwardSearchIndex[mVal] == nil) then _forwardSearchIndex[mVal] = {} end
+        local matchClass, _ = DB.getValue(mLibNode, "librarylink")
+        _forwardSearchIndex[mVal][mLibNode] = { ["recordType"] = matchClass, ["weight"] = tokens["weight"] }
     end
 end
 
@@ -212,20 +202,15 @@ end
 
 function onModuleLoad(module)
     if (not moduleIndexed(module)) or (_indexedModules[module]) then return end
-    local sTime = os.clock()
-    local recordCount = 0
+    local moduleNodes = {}
     for _, recordType in pairs(LibraryData.getRecordTypes()) do
         for _, recordMapping in ipairs(LibraryData.getMappings(recordType)) do
             for _, recordNode in pairs(DB.getChildren(recordMapping .. "@" .. module)) do
-                processNode(recordNode, recordType)
-                recordCount = recordCount + 1
+                table.insert(moduleNodes, {["recordNode"] = DB.getPath(recordNode), ["recordType"] = recordType})
             end
         end
     end
-    _indexedModules[module] = true
-    saveIndex()
-    setModuleData(module, 1, os.clock() - sTime, recordCount)
-    Debug.console("Indexing module " .. module .. " took " .. os.clock() - sTime)
+    AsyncLib.scheduleAsync(module .. "NodesIndex", processNodeAsync, moduleNodes, handleModuleIndexRes)
 end
 
 function onModuleUnload(module)
@@ -245,7 +230,7 @@ function onModuleUnload(module)
         end
     end
     _indexedModules[module] = nil
-    saveIndex()
+--     saveIndex()
     Debug.console("Clearing index for module " .. module .. " took " .. os.clock() - sTime)
 end
 

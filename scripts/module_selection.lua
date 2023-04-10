@@ -28,8 +28,7 @@ function saveAndClose()
         SearchIndexer.onModuleUnload(moduleName)
         SearchIndexer.setModuleData(moduleName, selected, lastIndexTime, lastIndexRecords)
     end
-    SearchIndexer.buildModuleIndex()
-    local buildTime = os.clock()
-    Debug.chat("Rebuilding module index took: " .. buildTime - sTime .. "s")
+    SearchIndexer.getModuleNodesAsync()
+    AsyncLib.startAsync()
     self.close()
 end

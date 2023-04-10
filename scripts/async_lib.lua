@@ -21,7 +21,6 @@ function onDesktopInit()
 end
 
 function hookDesktop()
-    if _asyncActive then return end
     local w = Interface.openWindow("async_trigger", "")
     _asyncActive = true
     if (w or "") ~= "" then
@@ -87,8 +86,11 @@ function handleAsyncOOB(callName, callArgs)
     return true
 end
 
+function startAsync()
+    hookDesktop()
+end
+
 function scheduleAsync(callName, targetFn, callArgs, callbackFn)
---     local callName = _asyncBase..math.random(10000, 99999)
     if (callArgs or "") == "" then return end
     Debug.chat("Scheduling async call: ".. callName, #callArgs)
     _asyncFunctions[callName] = targetFn
@@ -97,5 +99,4 @@ function scheduleAsync(callName, targetFn, callArgs, callbackFn)
     _asyncStartTimes[callName] = os.clock()
     _asyncCallCount[callName] = #callArgs
     _activeAsyncResults[callName] = {}
-    hookDesktop()
 end
