@@ -17,9 +17,11 @@
 		<includefile source="common/template_common.xml"/>
 		<includefile source="common/record_browser.xml"/>
 		<includefile source="common/graphics.xml"/>
+		<includefile source="common/async_lib.xml"/>
 
 		<script name="BrowserManager" file="scripts/browser_manager.lua" />
 		<script name="SearchManager" file="scripts/search_manager.lua" />
 		<script name="SearchIndexer" file="scripts/search_indexer.lua" />
+		<script name="AsyncLib" file="scripts/async_lib.lua" />
 	</base>
 </root>

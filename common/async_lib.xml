@@ -1,0 +1,29 @@
+<root>
+    <windowclass name="async_trigger">
+        <placement>
+            <size width="50" height="50"/>
+        </placement>
+        <invisible />
+        <disabled />
+        <script>
+            function onInit()
+                self.onMove = moveTrigger
+                self.onSizeChanged = sizeTrigger
+            end
+            function moveTrigger()
+                if AsyncLib.eventLoop() then
+                    setSize(math.random(1,100),math.random(1,100))
+                else
+                    close()
+                end
+            end
+            function sizeTrigger()
+                if AsyncLib.eventLoop() then
+                    setPosition(math.random(200,1000),math.random(200,1000))
+                else
+                    close()
+                end
+            end
+        </script>
+    </windowclass>
+</root>

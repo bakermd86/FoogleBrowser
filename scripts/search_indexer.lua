@@ -27,8 +27,8 @@ function onInit()
         { labels = "option_val_on", values = "on", baselabel = "option_val_off", baseval = "off", default = "off" })
     end
 --     CampaignRegistry["storedSearchIndex"] = nil
---     Interface.onDesktopInit = loadIndex;
-    loadIndex()
+    Interface.onDesktopInit = loadIndex;
+--     loadIndex()
 end
 
 
@@ -59,6 +59,18 @@ function updateSearchByWord(word, weightMod, searchResults)
     return results
 end
 
+function processNodeAsync(nodeDef)
+    local nodeStr = nodeDef['recordNode']
+    local recordType = nodeDef['recordType']
+    local recordNode = DB.findNode(nodeStr)
+    for mVal, tokens in pairs(indexRecord(recordNode)) do
+        if (_forwardSearchIndex[mVal] == nil) then _forwardSearchIndex[mVal] = {} end
+        _forwardSearchIndex[mVal][nodeStr] = { ["recordType"] = recordType, ["weight"] = tokens["weight"] }
+        if (_reverseSearchIndex[nodeStr] == nil) then _reverseSearchIndex[nodeStr] = {} end
+        table.insert(_reverseSearchIndex[nodeStr], mVal)
+    end
+end
+
 function processNode(recordNode, recordType)
     local nodeStr = DB.getPath(recordNode)
     for mVal, tokens in pairs(indexRecord(recordNode)) do
@@ -85,20 +97,65 @@ function buildIndex()
     _indexedModules = {}
     _indexStartTime = os.clock()
 
-    buildCampaignIndex()
-    local recordIdxTime = os.clock()
+--     buildCampaignIndex()
+--     local recordIdxTime = os.clock()
 
     buildLibraryReferenceIndex()
     local refIdxTime = os.clock()
 
-    buildModuleIndex()
-    local buildTime = os.clock()
-    saveIndex()
-    Debug.console("SearchIndexer.recordIdxTime: " .. recordIdxTime - _indexStartTime)
-    Debug.console("SearchIndexer.refIdxTime" .. refIdxTime - recordIdxTime)
-    Debug.console("SearchIndexer.moduleIdxTime" .. buildTime - refIdxTime)
-    Debug.console("SearchIndexer.buildIndexTotal: " .. buildTime - _indexStartTime)
-    Debug.console("SearchIndexer.saveIndex: " .. os.clock() - _indexStartTime)
+--     buildModuleIndex()
+--     local buildTime = os.clock()
+--     saveIndex()
+    local nodesToIndex = getIndexNodesAsync()
+    local modulesToIndex = getModuleNodesAsync()
+    AsyncLib.scheduleAsync("campaignNodesIndex", processNodeAsync, nodesToIndex, handleModuleIndexRes)
+    for module, moduleNodes in pairs(modulesToIndex) do
+        AsyncLib.scheduleAsync(module .. "NodesIndex", processNodeAsync, moduleNodes, handleModuleIndexRes)
+    end
+
+--     Debug.console("SearchIndexer.recordIdxTime: " .. recordIdxTime - _indexStartTime)
+--     Debug.console("SearchIndexer.refIdxTime" .. refIdxTime - recordIdxTime)
+--     Debug.console("SearchIndexer.moduleIdxTime" .. buildTime - refIdxTime)
+--     Debug.console("SearchIndexer.buildIndexTotal: " .. buildTime - _indexStartTime)
+--     Debug.console("SearchIndexer.buildIndex: " .. os.clock() - _indexStartTime)
+end
+
+function handleModuleIndexRes(callName, asyncResults, asyncCount, asyncTime)
+    Debug.chat("Indexing job " .. callName .. " took " .. asyncTime .. " seconds to index " .. asyncCount .. " records")
+end
+
+function getIndexNodesAsync()
+    local nodesToIndex = {}
+    for _, recordType in pairs(LibraryData.getRecordTypes()) do
+        for _, recordMapping in ipairs(LibraryData.getMappings(recordType)) do
+            for name, recordNode  in pairs(DB.getChildren(recordMapping)) do
+                table.insert(nodesToIndex, {["recordNode"] = DB.getPath(recordNode), ["recordType"] = recordType})
+--                 Debug.chat(DB.getPath(recordNode), #nodesToIndex)
+             end
+        end
+    end
+    return nodesToIndex
+end
+
+function getModuleNodesAsync()
+    local modulesToIndex = {}
+    for _, module in ipairs(Module.getModules()) do
+        if Module.getModuleInfo(module)["loaded"] then
+            if (moduleIndexed(module)) and not (_indexedModules[module]) then
+                local moduleNodes = {}
+                for _, recordType in pairs(LibraryData.getRecordTypes()) do
+                    for _, recordMapping in ipairs(LibraryData.getMappings(recordType)) do
+                        for _, recordNode in pairs(DB.getChildren(recordMapping .. "@" .. module)) do
+                            table.insert(moduleNodes, {["recordNode"] = DB.getPath(recordNode), ["recordType"] = recordType})
+--                             Debug.chat(DB.getPath(recordNode), #nodesToIndex)
+                        end
+                    end
+                end
+                modulesToIndex[module] = moduleNodes
+            end
+        end
+    end
+    return modulesToIndex
 end
 
 function buildCampaignIndex()
