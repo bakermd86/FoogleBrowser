@@ -12,14 +12,16 @@
             end
             function moveTrigger()
                 if AsyncLib.eventLoop() then
-                    setSize(math.random(1,100),math.random(1,100))
+                    local x, y = getSize()
+                    setSize(math.fmod(x+1,100),math.fmod(y+1,100))
                 else
                     close()
                 end
             end
             function sizeTrigger()
                 if AsyncLib.eventLoop() then
-                    setPosition(math.random(200,1000),math.random(200,1000))
+                    local x, y = getPosition()
+                    setPosition(math.fmod(x+1,1000),math.fmod(y+1,1000))
                 else
                     close()
                 end
