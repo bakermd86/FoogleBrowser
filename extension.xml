@@ -1,11 +1,11 @@
 <?xml version="1.0" encoding="iso-8859-1"?>
 
 <root logo="logo.png">
-	<announcement text="FG Browser v1.1.2" font="emotefont" />
+	<announcement text="FG Browser v1.2.0" font="emotefont" />
 
 	<properties>
 		<name>FG Browser</name>
-		<version>1.1.2</version>
+		<version>1.2.0</version>
 
 		<author>Fen</author>
 		<description>Adds a tabbed browser window for containing and searching records</description>
@@ -17,9 +17,11 @@
 		<includefile source="common/template_common.xml"/>
 		<includefile source="common/record_browser.xml"/>
 		<includefile source="common/graphics.xml"/>
+		<includefile source="common/async_lib.xml"/>
 
 		<script name="BrowserManager" file="scripts/browser_manager.lua" />
 		<script name="SearchManager" file="scripts/search_manager.lua" />
 		<script name="SearchIndexer" file="scripts/search_indexer.lua" />
+		<script name="AsyncLib" file="scripts/async_lib.lua" />
 	</base>
 </root>
