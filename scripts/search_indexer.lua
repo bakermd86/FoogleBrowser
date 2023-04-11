@@ -9,20 +9,22 @@ local MODULE_IDX_DATA = "moduleIndexingData"
 local INDEX_FMT_TEXT = "INDEX_FMT_TEXT"
 local INDEX_NON_TEXT = "INDEX_NON_TEXT"
 local INDEX_SIMPLE = "INDEX_SIMPLE"
-local INDEX_TIMEOUT = "INDEX_TIMEOUT"
+local INDEX_SHOW_STATUS = "INDEX_SHOW_STATUS"
 -- local INDEX_PERSIST = "INDEX_PERSIST"
 local _indexFmt = nil
 local _indexSimple = nil
 local _indexStartTime = nil
+local _indexNonText = nil
+local _indexShowStatus = nil
 
 function onInit()
     OptionsManager.registerButton("label_option_rebuild_index", "reindex_search", "")
     OptionsManager.registerButton("label_option_module_selection", "module_selection", "")
-    for _, o in ipairs({INDEX_SIMPLE, INDEX_FMT_TEXT}) do
+    for _, o in ipairs({INDEX_FMT_TEXT, INDEX_SHOW_STATUS}) do
         OptionsManager.registerOption2(o, true, "option_header_search_options", "label_option_"..o, "option_entry_cycler",
         { labels = "option_val_on", values = "on", baselabel = "option_val_off", baseval = "off", default = "on" })
     end
-    for _, o in ipairs({INDEX_NON_TEXT}) do
+    for _, o in ipairs({INDEX_NON_TEXT, INDEX_SIMPLE}) do
         OptionsManager.registerOption2(o, true, "option_header_search_options", "label_option_"..o, "option_entry_cycler",
         { labels = "option_val_on", values = "on", baselabel = "option_val_off", baseval = "off", default = "off" })
     end
@@ -89,9 +91,16 @@ function saveIndex()
     CampaignRegistry["indexVer"] = nil
 end
 
-function buildIndex()
+function loadSettings()
     _indexFmt = OptionsManager.getOption(INDEX_FMT_TEXT) == "on"
     _indexSimple = OptionsManager.getOption(INDEX_SIMPLE) == "on"
+    _indexNonText = OptionsManager.getOption(INDEX_NON_TEXT) == "on"
+    _indexShowStatus = OptionsManager.getOption(INDEX_SHOW_STATUS) == "on"
+    AsyncLib.setShowIndex(_indexShowStatus)
+end
+
+function buildIndex()
+    loadSettings()
     _forwardSearchIndex = {}
     _reverseSearchIndex = {}
     _indexedModules = {}
@@ -106,7 +115,7 @@ end
 
 function handleModuleIndexRes(callName, asyncResults, asyncCount, asyncTime)
     local moduleName = callName:sub(1,-11)
-    Debug.chat("Indexing module " .. moduleName .. " took " .. asyncTime .. " seconds to index " .. asyncCount .. " records")
+    Debug.console("Indexing module " .. moduleName .. " took " .. asyncTime .. " seconds to index " .. asyncCount .. " records")
     _indexedModules[moduleName] = true
     setModuleData(moduleName, 1, asyncTime, asyncCount)
 end
@@ -170,8 +179,7 @@ function buildLibraryReferenceIndex()
 end
 
 function buildModuleIndex()
-    _indexFmt = OptionsManager.getOption(INDEX_FMT_TEXT) == "on"
-    _indexSimple = OptionsManager.getOption(INDEX_SIMPLE) == "on"
+    loadSettings()
     for _, module in ipairs(Module.getModules()) do
         if Module.getModuleInfo(module)["loaded"] then
             Debug.console("Loaded module: " .. module, _)
@@ -263,8 +271,7 @@ function indexNewNode(nodeParent, newNode)
 end
 
 function reindexNode(nodeChanged)
-    _indexFmt = OptionsManager.getOption(INDEX_FMT_TEXT) == "on"
-    _indexSimple = OptionsManager.getOption(INDEX_SIMPLE) == "on"
+    loadSettings()
     local sTime = os.clock()
     local nodeStr = DB.getPath(nodeChanged)
     local recordType = LibraryData.getRecordTypeFromRecordPath(nodeStr)
@@ -394,6 +401,8 @@ function indexEndNode(endNode, isLibrary)
     local nodeType = DB.getType(endNode)
     if (nodeType == "formattedtext") and not _indexFmt then return indexVals
     elseif _indexSimple and (nodeType ~= "string") then
+        return indexVals
+    elseif (not _indexNonText) and (not (nodeType == "string" or nodeType == "formattedtext")) then
         return indexVals
     end
 

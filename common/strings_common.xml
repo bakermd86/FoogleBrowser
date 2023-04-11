@@ -9,6 +9,7 @@
     <string name="label_option_INDEX_REFERENCE">Index Reference Material</string>
     <string name="label_option_INDEX_FMT_TEXT">Index Formatted Text</string>
     <string name="label_option_INDEX_NON_TEXT">Index Non-Text Nodes</string>
+    <string name="label_option_INDEX_SHOW_STATUS">Show Indexing Status</string>
     <string name="label_option_INDEX_SIMPLE">Basic Indexing</string>
     <string name="label_option_INDEX_PERSIST">Persist Campaign Index</string>
 

@@ -26,4 +26,63 @@
             end
         </script>
     </windowclass>
+
+    <windowclass name="async_status">
+        <frame name="browser_frame" offset="10,2,10,10"/>
+        <sheetdata>
+            <windowlist name="async_tasks">
+                <anchored>
+                    <top offset="24"/>
+                    <left offset="10"/>
+                    <right offset="-10"/>
+                    <bottom offset="-10"/>
+                </anchored>
+                <class>async_status_entry</class>
+            </windowlist>
+            <genericcontrol name="headerAnchor">
+                <anchored position="insidetopleft" />
+            </genericcontrol>
+            <module_sel_header>
+                <anchored width="295"/>
+                <static> Job Name </static>
+            </module_sel_header>
+            <module_sel_header>
+                <anchored width="145"/>
+                <static> Job Status </static>
+            </module_sel_header>
+        </sheetdata>
+    </windowclass>
+
+	<panel name="asyncstatuspanel">
+		<anchored width="450" height="100">
+			<top offset="5"/>
+			<right parent="shortcutsanchor" anchor="left" />
+		</anchored>
+		<class>asyncstatuspanel</class>
+    </panel>
+
+    <windowclass name="asyncstatuspanel">
+        <sheetdata>
+            <subwindow name="status">
+                <anchored position="over"/>
+                <class>async_status</class>
+                <activate />
+                <fastinit />
+            </subwindow>
+        </sheetdata>
+    </windowclass>
+
+    <windowclass name="async_status_entry">
+        <sheetdata>
+            <genericcontrol name="rowAnchor">
+                <anchored position="insidetopleft" height="0" width="0" />
+            </genericcontrol>
+                <module_sel_label name="jobName" >
+                    <anchored width="295" />
+                </module_sel_label>
+                <module_sel_label name="jobStatus" >
+                    <anchored width="145" />
+                </module_sel_label>
+        </sheetdata>
+    </windowclass>
 </root>

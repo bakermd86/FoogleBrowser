@@ -4,15 +4,19 @@ local _activeAsyncArgs = {}
 local _resultCallbacks = {}
 local _activeAsyncResults = {}
 local _asyncCallCount = {}
-local _hookedWindows = {}
 local _asyncStartTimes = {}
+local _callWins = {}
 local _activeCall = ""
 local _asyncActive = false
-local _asyncBase = "ASYNC_BASE_"
+local _showIndexStatus = false
 
 function onInit()
     math.randomseed(os.time() - os.clock() * 1000);
     Interface.onDesktopInit = self.onDesktopInit
+end
+
+function setShowIndex(bStatus)
+    _showIndexStatus = bStatus
 end
 
 function onDesktopInit()
@@ -21,24 +25,32 @@ function onDesktopInit()
     hookDesktop()
 end
 
+function startAsync()
+    hookDesktop()
+end
+
 function hookDesktop()
     local w = Interface.openWindow("async_trigger", "")
+    local statusWin = Interface.findWindow("asyncstatuspanel", "")
     _asyncActive = true
     if (w or "") ~= "" then
         w.setPosition(math.random(200,1000),math.random(200,1000))
+    end
+    if (statusWin or "") ~= "" then
+        statusWin.status.setVisible(_showIndexStatus)
     end
 end
 
 function unHookDesktop()
     _asyncActive = false
     local w = Interface.findWindow("async_trigger", "")
+    local statusWin = Interface.findWindow("asyncstatuspanel", "")
     if (w or "") ~= "" then
         w.close()
     end
-end
-
-function isActive()
-    return _asyncActive
+    if (statusWin or "") ~= "" then
+        statusWin.status.setVisible(false)
+    end
 end
 
 function eventLoop()
@@ -47,16 +59,17 @@ function eventLoop()
         local finishedJobs = {}
         local asyncCount = 0
         if (_activeCall or "") == "" then
-            _activeCall = table.remove(_pendingCalls)
+            _activeCall = table.remove(_pendingCalls, 1)
+            local callWin = _callWins[_activeCall]
+            callWin.jobStatus.setValue("Running")
             _asyncStartTimes[_activeCall] = os.clock()
         end
         local callArgs = _activeAsyncArgs[_activeCall]
         if not handleAsyncOOB(_activeCall, callArgs) then
-            asyncCallComplete(_activeCall)
-        end
-        if #_pendingCalls == 0 then
-            unHookDesktop()
-            return false
+            if asyncCallComplete(_activeCall) then
+                unHookDesktop()
+                return false
+            end
         end
     end
     return true
@@ -70,7 +83,11 @@ function asyncCallComplete(callName)
     local callbackFn = _resultCallbacks[callName]
     local sTime = _asyncStartTimes[callName]
     local asyncCount = _asyncCallCount[callName]
+    local callWin = _callWins[callName]
+    callWin.close()
+    _callWins[callName] = nil
     if (callbackFn or "") ~= "" then callbackFn(callName, asyncResults, asyncCount, os.clock() - sTime) end
+    return #_pendingCalls == 0
 end
 
 function unRegisterAsyncFunction(callName)
@@ -86,17 +103,18 @@ function handleAsyncOOB(callName, callArgs)
     return true
 end
 
-function startAsync()
-    hookDesktop()
-end
-
 function scheduleAsync(callName, targetFn, callArgs, callbackFn)
     if (callArgs or "") == "" then return end
-    Debug.chat("Scheduling async call: ".. callName, #callArgs)
+    Debug.console("Scheduling async call: ".. callName, #callArgs)
     table.insert(_pendingCalls, callName)
     _asyncFunctions[callName] = targetFn
     _activeAsyncArgs[callName] = callArgs
     _resultCallbacks[callName] = callbackFn
     _asyncCallCount[callName] = #callArgs
     _activeAsyncResults[callName] = {}
+    local statusWin = Interface.findWindow("asyncstatuspanel", "")
+    local callWin = statusWin.status.subwindow.async_tasks.createWindow()
+    callWin.jobName.setValue(callName)
+    callWin.jobStatus.setValue("Queued")
+    _callWins[callName] = callWin
 end
