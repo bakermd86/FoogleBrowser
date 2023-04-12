@@ -54,22 +54,19 @@ function unHookDesktop()
 end
 
 function eventLoop()
-    local sTime = os.clock()
-    while os.clock() - sTime < 0.010 do
-        local finishedJobs = {}
-        local asyncCount = 0
-        if (_activeCall or "") == "" then
-            _activeCall = table.remove(_pendingCalls, 1)
-            local callWin = _callWins[_activeCall]
-            callWin.jobStatus.setValue("Running")
-            _asyncStartTimes[_activeCall] = os.clock()
-        end
-        local callArgs = _activeAsyncArgs[_activeCall]
-        if not handleAsyncOOB(_activeCall, callArgs) then
-            if asyncCallComplete(_activeCall) then
-                unHookDesktop()
-                return false
-            end
+    local finishedJobs = {}
+    local asyncCount = 0
+    if (_activeCall or "") == "" then
+        _activeCall = table.remove(_pendingCalls, 1)
+        local callWin = _callWins[_activeCall]
+        callWin.jobStatus.setValue("Running")
+        _asyncStartTimes[_activeCall] = os.clock()
+    end
+    local callArgs = _activeAsyncArgs[_activeCall]
+    if not handleAsyncOOB(_activeCall, callArgs) then
+        if asyncCallComplete(_activeCall) then
+            unHookDesktop()
+            return false
         end
     end
     return true
