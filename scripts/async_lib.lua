@@ -12,10 +12,10 @@ local _showIndexStatus = false
 local _asyncPriority = nil
 local _priorityMap = {
     ["1"] = 1,
-    ["2"] = 3,
-    ["3"] = 5,
-    ["4"] = 10,
-    ["5"] = 15,
+    ["2"] = 2,
+    ["3"] = 4,
+    ["4"] = 8,
+    ["5"] = 16,
     ["block"] = 10000
 }
 local ASYNC_PRIORITY = "ASYNC_PRIORITY"
@@ -50,12 +50,16 @@ function toggleStatus(showStatus)
 end
 
 function hookDesktop()
+    Debug.console("hookDesktop() Enter")
     local w = Interface.openWindow("async_trigger", "")
+    Debug.console(w)
     _asyncActive = true
     if (w or "") ~= "" then
-        w.setPosition(math.random(200,1000),math.random(200,1000))
+        local x, y = w.getPosition()
+        w.setPosition(math.fmod(x+1,1000),math.fmod(y+1,1000))
     end
     toggleStatus(_showIndexStatus)
+    Debug.console("hookDesktop() Exit")
 end
 
 function unHookDesktop()
@@ -68,13 +72,14 @@ function unHookDesktop()
 end
 
 function eventLoop()
+    Debug.console("eventLoop() enter")
     local sTime = os.clock()
     _asyncPriority = OptionsManager.getOption(ASYNC_PRIORITY)
     local lCount = 0
     while lCount < _priorityMap[_asyncPriority] do
-        local finishedJobs = {}
         if (_activeCall or "") == "" then
             _activeCall = table.remove(_pendingCalls, 1)
+            Debug.console("eventLoop() start call: ", _activeCall)
             if (_activeCall or "") == "" then return false end
             local callWin = _callWins[_activeCall]
             callWin.jobStatus.setValue("Running")
@@ -85,14 +90,17 @@ function eventLoop()
         if not handleAsyncOOB(_activeCall, callArgs) then
             if asyncCallComplete(_activeCall) then
                 unHookDesktop()
+                Debug.console("eventLoop() exit done")
                 return false
             end
         end
     end
+    Debug.console("eventLoop() exit continue")
     return true
 end
 
 function asyncCallComplete(callName)
+    Debug.console("asyncCallComplete() Enter: ".. callName)
     _activeCall = ""
     _activeAsyncArgs[callName] = nil
     _asyncFunctions[callName] = nil
@@ -105,10 +113,6 @@ function asyncCallComplete(callName)
     _callWins[callName] = nil
     if (callbackFn or "") ~= "" then callbackFn(callName, asyncResults, asyncCount, os.clock() - sTime) end
     return #_pendingCalls == 0
-end
-
-function unRegisterAsyncFunction(callName)
-    _asyncFunctions[callName] = nil
 end
 
 function handleAsyncOOB(callName, callArgs)
