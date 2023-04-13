@@ -11,20 +11,22 @@
                 self.onSizeChanged = sizeTrigger
             end
             function moveTrigger()
-                if AsyncLib.eventLoop() then
-                    local x, y = getSize()
-                    setSize(math.fmod(x+1,100),math.fmod(y+1,100))
-                else
-                    close()
+                if not AsyncLib.eventLoop() then
+                    self.onSizeChanged = closeSafe
                 end
+                local x, y = getSize()
+                setSize(math.fmod(x+1,100),math.fmod(y+1,100))
             end
             function sizeTrigger()
-                if AsyncLib.eventLoop() then
-                    local x, y = getPosition()
-                    setPosition(math.fmod(x+1,1000),math.fmod(y+1,1000))
-                else
-                    close()
+                if not AsyncLib.eventLoop() then
+                    self.onMove = closeSafe
                 end
+                local x, y = getPosition()
+                setPosition(math.fmod(x+1,1000),math.fmod(y+1,1000))
+            end
+            function closeSafe()
+                AsyncLib.toggleStatus(false)
+                close()
             end
         </script>
     </windowclass>

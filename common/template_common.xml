@@ -334,7 +334,7 @@
 
 	<template name="module_header_anchor">
 		<genericcontrol name="headerAnchor">
-			<anchored position="insidetopleft" offset="50, 50" />
+			<anchored position="insidetopleft" offset="50, 75" />
 		</genericcontrol>
 	</template>
 

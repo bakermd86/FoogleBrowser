@@ -216,12 +216,15 @@
 		</sizelimits>
         <script file="scripts/module_selection.lua"/>
         <sheetdata>
+            <genericcontrol name="optionHeader">
+			    <anchored position="insidetopleft" offset="50, 50" />
+            </genericcontrol>
 
             <windowlist name="modules">
             <frame name="groupbox" offset="15,30,15,10" />
                 <class>module_selector</class>
                 <anchored >
-                    <top offset="70" />
+                    <top offset="95" />
                     <left offset="30" />
                     <right offset="-30" />
                     <bottom offset="-60"/>

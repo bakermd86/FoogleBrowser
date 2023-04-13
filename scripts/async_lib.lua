@@ -9,10 +9,22 @@ local _callWins = {}
 local _activeCall = ""
 local _asyncActive = false
 local _showIndexStatus = false
+local _asyncPriority = nil
+local _priorityMap = {
+    ["1"] = 1,
+    ["2"] = 3,
+    ["3"] = 5,
+    ["4"] = 10,
+    ["5"] = 15,
+    ["block"] = 10000
+}
+local ASYNC_PRIORITY = "ASYNC_PRIORITY"
 
 function onInit()
     math.randomseed(os.time() - os.clock() * 1000);
     Interface.onDesktopInit = self.onDesktopInit
+	OptionsManager.registerOption2(ASYNC_PRIORITY, false, "option_header_search_options", "label_option_SCHEDULE_FACTOR", "option_entry_cycler",
+        { labels = "option_val_4|option_val_5|option_val_block|option_val_1|option_val_2", values = "4|5|block|1|2", baselabel = "option_val_3", baseval = "3", default = "3" });
 end
 
 function setShowIndex(bStatus)
@@ -26,47 +38,55 @@ function onDesktopInit()
 end
 
 function startAsync()
+    if OptionsManager.getOption(ASYNC_PRIORITY) == "block" then _showIndexStatus = false end
     hookDesktop()
+end
+
+function toggleStatus(showStatus)
+    local statusWin = Interface.findWindow("asyncstatuspanel", "")
+    if (statusWin or "") ~= "" then
+        statusWin.status.setVisible(showStatus)
+    end
 end
 
 function hookDesktop()
     local w = Interface.openWindow("async_trigger", "")
-    local statusWin = Interface.findWindow("asyncstatuspanel", "")
     _asyncActive = true
     if (w or "") ~= "" then
         w.setPosition(math.random(200,1000),math.random(200,1000))
     end
-    if (statusWin or "") ~= "" then
-        statusWin.status.setVisible(_showIndexStatus)
-    end
+    toggleStatus(_showIndexStatus)
 end
 
 function unHookDesktop()
     _asyncActive = false
     local w = Interface.findWindow("async_trigger", "")
-    local statusWin = Interface.findWindow("asyncstatuspanel", "")
     if (w or "") ~= "" then
         w.close()
     end
-    if (statusWin or "") ~= "" then
-        statusWin.status.setVisible(false)
-    end
+    toggleStatus(false)
 end
 
 function eventLoop()
-    local finishedJobs = {}
-    local asyncCount = 0
-    if (_activeCall or "") == "" then
-        _activeCall = table.remove(_pendingCalls, 1)
-        local callWin = _callWins[_activeCall]
-        callWin.jobStatus.setValue("Running")
-        _asyncStartTimes[_activeCall] = os.clock()
-    end
-    local callArgs = _activeAsyncArgs[_activeCall]
-    if not handleAsyncOOB(_activeCall, callArgs) then
-        if asyncCallComplete(_activeCall) then
-            unHookDesktop()
-            return false
+    local sTime = os.clock()
+    _asyncPriority = OptionsManager.getOption(ASYNC_PRIORITY)
+    local lCount = 0
+    while lCount < _priorityMap[_asyncPriority] do
+        local finishedJobs = {}
+        if (_activeCall or "") == "" then
+            _activeCall = table.remove(_pendingCalls, 1)
+            if (_activeCall or "") == "" then return false end
+            local callWin = _callWins[_activeCall]
+            callWin.jobStatus.setValue("Running")
+            _asyncStartTimes[_activeCall] = os.clock()
+        end
+        local callArgs = _activeAsyncArgs[_activeCall]
+        lCount = lCount + 1
+        if not handleAsyncOOB(_activeCall, callArgs) then
+            if asyncCallComplete(_activeCall) then
+                unHookDesktop()
+                return false
+            end
         end
     end
     return true
