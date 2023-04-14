@@ -33,7 +33,6 @@ end
 
 function onDesktopInit()
     if not _asyncActive then return end
-    unHookDesktop()
     hookDesktop()
 end
 
@@ -50,29 +49,21 @@ function toggleStatus(showStatus)
 end
 
 function hookDesktop()
-    Debug.console("hookDesktop() Enter")
     local w = Interface.openWindow("async_trigger", "")
-    Debug.console(w)
-    _asyncActive = true
-    if (w or "") ~= "" then
-        local x, y = w.getPosition()
-        w.setPosition(math.fmod(x+1,1000),math.fmod(y+1,1000))
-    end
     toggleStatus(_showIndexStatus)
-    Debug.console("hookDesktop() Exit")
 end
 
-function unHookDesktop()
-    _asyncActive = false
-    local w = Interface.findWindow("async_trigger", "")
-    if (w or "") ~= "" then
-        w.close()
-    end
-    toggleStatus(false)
+function setAsyncActive(asyncActive)
+    _asyncActive = asyncActive
 end
+
+local _dumped = false
 
 function eventLoop()
-    Debug.console("eventLoop() enter")
+    if not _dumped then
+        Debug.printstack()
+        _dumped = true
+    end
     local sTime = os.clock()
     _asyncPriority = OptionsManager.getOption(ASYNC_PRIORITY)
     local lCount = 0
@@ -89,13 +80,10 @@ function eventLoop()
         lCount = lCount + 1
         if not handleAsyncOOB(_activeCall, callArgs) then
             if asyncCallComplete(_activeCall) then
-                unHookDesktop()
-                Debug.console("eventLoop() exit done")
                 return false
             end
         end
     end
-    Debug.console("eventLoop() exit continue")
     return true
 end
 
