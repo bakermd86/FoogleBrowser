@@ -3,30 +3,13 @@
         <placement>
             <size width="50" height="50"/>
         </placement>
+        <sizelimits>
+            <minimum width="1" heigh="1"/>
+            <dynamic />
+        </sizelimits>
         <invisible />
         <disabled />
-        <script>
-            function onInit()
-                self.onMove = moveTrigger
-                self.onSizeChanged = sizeTrigger
-            end
-            function moveTrigger()
-                if AsyncLib.eventLoop() then
-                    local x, y = getSize()
-                    setSize(math.fmod(x+1,100),math.fmod(y+1,100))
-                else
-                    close()
-                end
-            end
-            function sizeTrigger()
-                if AsyncLib.eventLoop() then
-                    local x, y = getPosition()
-                    setPosition(math.fmod(x+1,1000),math.fmod(y+1,1000))
-                else
-                    close()
-                end
-            end
-        </script>
+        <script file="scripts/async_trigger.lua" />
     </windowclass>
 
     <windowclass name="async_status">
