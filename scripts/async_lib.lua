@@ -57,13 +57,14 @@ function setAsyncActive(asyncActive)
     _asyncActive = asyncActive
 end
 
-local _dumped = false
+local _dumped = 0
 
 function eventLoop()
-    if not _dumped then
+    if( #_pendingCalls == 0) and (_activeCall == "") then return false end
+    if math.fmod(_dumped, 250) == 0 then
         Debug.printstack()
-        _dumped = true
     end
+    _dumped = _dumped + 1
     local sTime = os.clock()
     _asyncPriority = OptionsManager.getOption(ASYNC_PRIORITY)
     local lCount = 0
@@ -73,7 +74,7 @@ function eventLoop()
             Debug.console("eventLoop() start call: ", _activeCall)
             if (_activeCall or "") == "" then return false end
             local callWin = _callWins[_activeCall]
-            callWin.jobStatus.setValue("Running")
+            if (callWin or "") ~= "" then callWin.jobStatus.setValue("Running") end
             _asyncStartTimes[_activeCall] = os.clock()
         end
         local callArgs = _activeAsyncArgs[_activeCall]
@@ -97,7 +98,7 @@ function asyncCallComplete(callName)
     local sTime = _asyncStartTimes[callName]
     local asyncCount = _asyncCallCount[callName]
     local callWin = _callWins[callName]
-    callWin.close()
+    if (callWin or "") ~= "" then callWin.close() end
     _callWins[callName] = nil
     if (callbackFn or "") ~= "" then callbackFn(callName, asyncResults, asyncCount, os.clock() - sTime) end
     return #_pendingCalls == 0

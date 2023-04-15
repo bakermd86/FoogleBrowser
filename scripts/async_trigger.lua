@@ -1,28 +1,55 @@
 function onInit()
+    Debug.console("onInit")
     self.onMove = moveTrigger
     self.onSizeChanged = sizeTrigger
     activate()
 end
-function activate()
-    AsyncLib.setAsyncActive(true)
-    setSize(math.random(100,200),math.random(100,200))
-    setPosition(math.random(1000,2000),math.random(1000,2000))
+
+function newXY(oldX, oldY)
+    local newX = oldX
+    local newY = oldY
+    while (newX == oldX) do newX = math.random(50, 1000) end
+    while (newY == oldY) do newY = math.random(50, 1000) end
+    return newX, newY
 end
+
+function resizeRand()
+    local x, y = getSize()
+    local newX, newY = newXY(x, y)
+    setSize(newX, newY)
+end
+
+function moveRand()
+    local x, y = getPosition()
+    local newX, newY = newXY(x, y)
+    setPosition(newX, newY)
+end
+
+function activate()
+    Debug.console("activate")
+    AsyncLib.setAsyncActive(true)
+    resizeRand()
+    moveRand()
+end
+
 function moveTrigger()
+    Debug.console("moveTrigger")
     if not AsyncLib.eventLoop() then
         self.onSizeChanged = closeSafe
     end
-    local x, y = getSize()
-    setSize(math.fmod(x+1,100),math.fmod(y+1,100))
+    resizeRand()
 end
+
 function sizeTrigger()
+    Debug.console("sizeTrigger")
     if not AsyncLib.eventLoop() then
         self.onMove = closeSafe
     end
-    local x, y = getPosition()
-    setPosition(math.fmod(x+1,1000),math.fmod(y+1,1000))
+    moveRand()
 end
+
 function closeSafe()
+    _running = false
     AsyncLib.toggleStatus(false)
     AsyncLib.setAsyncActive(false)
     close()
