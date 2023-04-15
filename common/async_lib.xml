@@ -1,6 +1,5 @@
 <root>
     <windowclass name="async_trigger">
-        <frame name="browser_frame" offset="10,2,10,10"/>
         <placement>
             <size width="50" height="50"/>
         </placement>

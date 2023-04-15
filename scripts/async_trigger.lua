@@ -1,5 +1,4 @@
 function onInit()
-    Debug.console("onInit")
     self.onMove = moveTrigger
     self.onSizeChanged = sizeTrigger
     activate()
@@ -26,14 +25,12 @@ function moveRand()
 end
 
 function activate()
-    Debug.console("activate")
     AsyncLib.setAsyncActive(true)
     resizeRand()
     moveRand()
 end
 
 function moveTrigger()
-    Debug.console("moveTrigger")
     if not AsyncLib.eventLoop() then
         self.onSizeChanged = closeSafe
     end
@@ -41,7 +38,6 @@ function moveTrigger()
 end
 
 function sizeTrigger()
-    Debug.console("sizeTrigger")
     if not AsyncLib.eventLoop() then
         self.onMove = closeSafe
     end
