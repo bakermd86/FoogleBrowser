@@ -4,6 +4,10 @@
         <placement>
             <size width="50" height="50"/>
         </placement>
+        <sizelimits>
+            <minimum width="1" heigh="1"/>
+            <dynamic />
+        </sizelimits>
         <invisible />
         <disabled />
         <script file="scripts/async_trigger.lua" />

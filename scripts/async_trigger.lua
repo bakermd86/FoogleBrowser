@@ -8,8 +8,8 @@ end
 function newXY(oldX, oldY)
     local newX = oldX
     local newY = oldY
-    while (newX == oldX) do newX = math.random(50, 1000) end
-    while (newY == oldY) do newY = math.random(50, 1000) end
+    while (newX == oldX) do newX = math.random(5, 30) end
+    while (newY == oldY) do newY = math.random(5, 30) end
     return newX, newY
 end
 
