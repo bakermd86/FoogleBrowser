@@ -1,47 +1,30 @@
+local _lastx = 0
+local _lasty = 0
+
 function onInit()
-    self.onMove = moveTrigger
     self.onSizeChanged = sizeTrigger
     activate()
 end
 
-function newXY(oldX, oldY)
-    local newX = oldX
-    local newY = oldY
-    while (newX == oldX) do newX = math.random(5, 30) end
-    while (newY == oldY) do newY = math.random(5, 30) end
-    return newX, newY
-end
-
-function resizeRand()
-    local x, y = getSize()
-    local newX, newY = newXY(x, y)
-    setSize(newX, newY)
-end
-
-function moveRand()
-    local x, y = getPosition()
-    local newX, newY = newXY(x, y)
-    setPosition(newX, newY)
-end
-
 function activate()
     AsyncLib.setAsyncActive(true)
-    resizeRand()
-    moveRand()
+    setSize(25, 25)
 end
 
-function moveTrigger()
-    if not AsyncLib.eventLoop() then
-        self.onSizeChanged = closeSafe
-    end
-    resizeRand()
-end
+local _dumpCount = 0
 
 function sizeTrigger()
     if not AsyncLib.eventLoop() then
-        self.onMove = closeSafe
+        self.onSizeChanged = closeSafe
     end
-    moveRand()
+    local x, y = getSize()
+    if _dumpCount < 10 then
+        Debug.console(x, y)
+        Debug.printstack()
+    end
+    Debug.console("sizeTrigger", x, y)
+    _dumpCount = _dumpCount + 1
+    setSize(25, 25)
 end
 
 function closeSafe()
