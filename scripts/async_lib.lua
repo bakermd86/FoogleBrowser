@@ -63,9 +63,6 @@ local _dumped = 0
 
 function eventLoop()
     if( #_pendingCalls == 0) and (_activeCall == "") then return false end
-    if math.fmod(_dumped, 250) == 0 then
-        Debug.printstack()
-    end
     _dumped = _dumped + 1
     local sTime = os.clock()
     _asyncPriority = OptionsManager.getOption(ASYNC_PRIORITY)
