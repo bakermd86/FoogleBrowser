@@ -5,7 +5,7 @@ local _reverseSearchIndex = {}
 local _indexedModules = {}
 local _moduleIndexingData = {}
 local MODULE_IDX_DATA = "moduleIndexingData"
--- local INDEX_MODULES = "INDEX_MODULES"
+local INDEX_ON_LOAD = "INDEX_ON_LOAD"
 local INDEX_FMT_TEXT = "INDEX_FMT_TEXT"
 local INDEX_NON_TEXT = "INDEX_NON_TEXT"
 local INDEX_SIMPLE = "INDEX_SIMPLE"
@@ -16,11 +16,13 @@ local _indexSimple = nil
 local _indexStartTime = nil
 local _indexNonText = nil
 local _indexShowStatus = nil
+local _indexOnLoad = nil
+local _indexLoaded = false
 
 function onInit()
     OptionsManager.registerButton("label_option_rebuild_index", "reindex_search", "")
     OptionsManager.registerButton("label_option_module_selection", "module_selection", "")
-    for _, o in ipairs({INDEX_FMT_TEXT, INDEX_SHOW_STATUS}) do
+    for _, o in ipairs({INDEX_FMT_TEXT, INDEX_SHOW_STATUS, INDEX_ON_LOAD}) do
         OptionsManager.registerOption2(o, true, "option_header_search_options", "label_option_"..o, "option_entry_cycler",
         { labels = "option_val_on", values = "on", baselabel = "option_val_off", baseval = "off", default = "on" })
     end
@@ -29,17 +31,23 @@ function onInit()
         { labels = "option_val_on", values = "on", baselabel = "option_val_off", baseval = "off", default = "off" })
     end
 --     CampaignRegistry["storedSearchIndex"] = nil
-    Interface.onDesktopInit = loadIndex;
+    if (CampaignRegistry[MODULE_IDX_DATA] or "") ~= "" then _moduleIndexingData = CampaignRegistry[MODULE_IDX_DATA] end
+    loadSettings()
+    if _indexOnLoad then
+        Interface.onDesktopInit = loadIndex;
+    end
 --     loadIndex()
 end
 
 
 function loadIndex()
-    if (CampaignRegistry[MODULE_IDX_DATA] or "") ~= "" then _moduleIndexingData = CampaignRegistry[MODULE_IDX_DATA] end
     buildIndex()
-    connectDBListeners()
-	Module.addEventHandler("onModuleLoad", onModuleLoad);
-	Module.addEventHandler("onModuleUnload", onModuleUnload);
+    if not _indexLoaded then
+        connectDBListeners()
+        Module.addEventHandler("onModuleLoad", onModuleLoad);
+        Module.addEventHandler("onModuleUnload", onModuleUnload);
+        _indexLoaded = true
+    end
 end
 
 function updateSearchByWord(word, weightMod, searchResults)
@@ -96,6 +104,7 @@ function loadSettings()
     _indexSimple = OptionsManager.getOption(INDEX_SIMPLE) == "on"
     _indexNonText = OptionsManager.getOption(INDEX_NON_TEXT) == "on"
     _indexShowStatus = OptionsManager.getOption(INDEX_SHOW_STATUS) == "on"
+    _indexOnLoad = OptionsManager.getOption(INDEX_ON_LOAD) == "on"
     AsyncLib.setShowIndex(_indexShowStatus)
 end
 

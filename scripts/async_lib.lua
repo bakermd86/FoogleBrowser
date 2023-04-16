@@ -10,12 +10,13 @@ local _activeCall = ""
 local _asyncActive = false
 local _showIndexStatus = false
 local _asyncPriority = nil
+local _priorityCounter = -1
 local _priorityMap = {
-    ["1"] = 1,
-    ["2"] = 2,
-    ["3"] = 4,
-    ["4"] = 8,
-    ["5"] = 16,
+    ["1"] = -8,
+    ["2"] = -4,
+    ["3"] = 1,
+    ["4"] = 4,
+    ["5"] = 8,
     ["block"] = 10000
 }
 local ASYNC_PRIORITY = "ASYNC_PRIORITY"
@@ -32,6 +33,7 @@ function setShowIndex(bStatus)
 end
 
 function onDesktopInit()
+    toggleStatus(false)
     if not _asyncActive then return end
     hookDesktop()
 end
@@ -68,7 +70,16 @@ function eventLoop()
     local sTime = os.clock()
     _asyncPriority = OptionsManager.getOption(ASYNC_PRIORITY)
     local lCount = 0
-    while lCount < _priorityMap[_asyncPriority] do
+    local lPrio = _priorityMap[_asyncPriority]
+    if lPrio < 1 then
+        if _priorityCounter >= lPrio then
+            lPrio = 1
+            _priorityCounter = -1
+        else
+            _priorityCounter = _priorityCounter - 1
+        end
+    end
+    while lCount < lPrio do
         if (_activeCall or "") == "" then
             _activeCall = table.remove(_pendingCalls, 1)
             Debug.console("eventLoop() start call: ", _activeCall)

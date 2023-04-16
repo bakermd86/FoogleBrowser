@@ -12,6 +12,7 @@
     <string name="label_option_INDEX_SHOW_STATUS">Show Indexing Status</string>
     <string name="label_option_INDEX_SIMPLE">Basic Indexing</string>
     <string name="label_option_SCHEDULE_FACTOR">Event Loop Priority</string>
+    <string name="label_option_INDEX_ON_LOAD">Index search on-load</string>
 
     <string name="button_save_and_close">Save &amp; Close</string>
     <string name="button_cancel">Cancel</string>
