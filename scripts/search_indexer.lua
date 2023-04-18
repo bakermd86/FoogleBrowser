@@ -42,6 +42,7 @@ end
 
 function loadIndex()
     buildIndex()
+    saveIndex()
     if not _indexLoaded then
         connectDBListeners()
         Module.addEventHandler("onModuleLoad", onModuleLoad);
@@ -116,8 +117,10 @@ function buildIndex()
     _indexStartTime = os.clock()
     local nodesToIndex = getIndexNodesAsync()
     local libraryNodesToIndex = getLibraryNodesAsync()
-    AsyncLib.scheduleAsync("campaignNodesIndex", processNodeAsync, nodesToIndex)
-    AsyncLib.scheduleAsync("libraryNodesIndex", buildLibraryReferenceIndexAsync, libraryNodesToIndex)
+--     AsyncLib.scheduleAsync("campaignNodesIndex", processNodeAsync, nodesToIndex)
+--     AsyncLib.scheduleAsync("libraryNodesIndex", buildLibraryReferenceIndexAsync, libraryNodesToIndex)
+    AsyncLib.scheduleAsync("campaignNodesIndex", nodesToIndex)
+    AsyncLib.scheduleAsync("libraryNodesIndex", libraryNodesToIndex)
     getModuleNodesAsync()
     AsyncLib.startAsync()
 end
@@ -126,6 +129,7 @@ function handleModuleIndexRes(callName, asyncResults, asyncCount, asyncTime)
     local moduleName = callName:sub(1,-11)
     Debug.console("Indexing module " .. moduleName .. " took " .. asyncTime .. " seconds to index " .. asyncCount .. " records")
     _indexedModules[moduleName] = true
+--     Debug.chat(_forwardSearchIndex)
     setModuleData(moduleName, 1, asyncTime, asyncCount)
 end
 
@@ -134,7 +138,9 @@ function getIndexNodesAsync()
     for _, recordType in pairs(LibraryData.getRecordTypes()) do
         for _, recordMapping in ipairs(LibraryData.getMappings(recordType)) do
             for name, recordNode  in pairs(DB.getChildren(recordMapping)) do
-                table.insert(nodesToIndex, {["recordNode"] = DB.getPath(recordNode), ["recordType"] = recordType})
+                local nIdx = newIndexer(recordNode, recordType, false)
+                table.insert(nodesToIndex, nIdx)
+--                 table.insert(nodesToIndex, {["recordNode"] = DB.getPath(recordNode), ["recordType"] = recordType})
              end
         end
     end
@@ -162,7 +168,9 @@ end
 function getLibraryNodesAsync()
     local libraryNodes = {}
     for libraryNode, _  in pairs(SearchManager.getAllFromModules("library")) do
-        table.insert(libraryNodes, libraryNode)
+        local nIdx = newIndexer(libraryNode, nil, true)
+        table.insert(libraryNodes, nIdx)
+--         table.insert(libraryNodes, libraryNode)
     end
     return libraryNodes
 end
@@ -223,11 +231,14 @@ function onModuleLoad(module)
     for _, recordType in pairs(LibraryData.getRecordTypes()) do
         for _, recordMapping in ipairs(LibraryData.getMappings(recordType)) do
             for _, recordNode in pairs(DB.getChildren(recordMapping .. "@" .. module)) do
-                table.insert(moduleNodes, {["recordNode"] = DB.getPath(recordNode), ["recordType"] = recordType})
+                local nIdx = newIndexer(recordNode, recordType, false)
+                table.insert(moduleNodes, nIdx)
+--                 table.insert(moduleNodes, {["recordNode"] = DB.getPath(recordNode), ["recordType"] = recordType})
             end
         end
     end
-    AsyncLib.scheduleAsync(module .. "NodesIndex", processNodeAsync, moduleNodes, handleModuleIndexRes)
+--     AsyncLib.scheduleAsync(module .. "NodesIndex", processNodeAsync, moduleNodes, handleModuleIndexRes)
+    AsyncLib.scheduleAsync(module .. "NodesIndex", moduleNodes, handleModuleIndexRes)
 end
 
 function onModuleUnload(module)
@@ -335,6 +346,72 @@ function indexNode(node, isLibrary)
         return indexEndNode(node, isLibrary)
     end
 end
+
+function walkChildren(node)
+    local children = {}
+    for _, childNode in pairs(DB.getChildren(node)) do
+        if DB.getType(childNode) == "node" then
+            for _, innerChild in ipairs(walkChildren(childNode)) do
+                table.insert(children, innerChild)
+            end
+        else
+            table.insert(children, childNode)
+        end
+    end
+    return children
+end
+
+function runIndexer(self)
+    if not self.isStarted then
+        self.childNodes = walkChildren(self.node)
+        self.isStarted = true
+        self.isActive = true
+        return
+    end
+    if #self.childNodes == 0 then
+        for mVal, tokens in pairs(self.node_results) do
+            if (_forwardSearchIndex[mVal] == nil) then _forwardSearchIndex[mVal] = {} end
+            local recordType = self.recordType
+            if self.isLibrary then
+                local mLibNode = tokens["mVal"]
+                recordType, _ = DB.getValue(mLibNode, "librarylink")
+            end
+            _forwardSearchIndex[mVal][self.nodeStr] = { ["recordType"] = recordType, ["weight"] = tokens["weight"] }
+            if not self.isLibrary then
+                if (_reverseSearchIndex[self.nodeStr] == nil) then _reverseSearchIndex[self.nodeStr] = {} end
+                table.insert(_reverseSearchIndex[self.nodeStr], mVal)
+            end
+        end
+        self.isActive = false
+    else
+        local nextChild = table.remove(self.childNodes)
+        for mVal, tokens in pairs(indexEndNode(nextChild, self.isLibrary)) do
+--             if (self.node_results[mVal] or "") ~= "" then
+--                 self.node_results[mVal]["weight"] = self.node_results[mVal]["weight"] + tokens["weight"]
+--             else
+--                 self.node_results[mVal] = tokens
+--             end
+            self.node_results[mVal] = tokens
+        end
+        self.isActive = true
+    end
+end
+
+function newIndexer(node, recordType, isLibrary)
+    local self = {}
+    self.node = node or ""
+    self.recordType = recordType or ""
+    self.nodeType = DB.getType(node)
+    self.nodeStr = DB.getPath(self.node)
+    self.isActive = false
+    self.isStarted = false
+    self.isLibrary = isLibrary or false
+    self.node_results = {}
+    self.childNodes = {}
+    self.run = runIndexer
+    return self
+end
+
 
 local wordMatchPat = "[a-z0-9'`]+"
 local subWordPat = "[a-z]+"

@@ -1,5 +1,5 @@
 local _pendingCalls = {}
-local _asyncFunctions = {}
+-- local _asyncFunctions = {}
 local _activeAsyncArgs = {}
 local _resultCallbacks = {}
 local _activeAsyncResults = {}
@@ -12,11 +12,13 @@ local _showIndexStatus = false
 local _asyncPriority = nil
 local _priorityCounter = -1
 local _priorityMap = {
-    ["1"] = -8,
-    ["2"] = -4,
-    ["3"] = 1,
-    ["4"] = 4,
-    ["5"] = 8,
+    ["1/8"] = 1,
+    ["1/4"] = 2,
+    ["1"] = 4,
+    ["2"] = 16,
+    ["3"] = 64,
+    ["4"] = 128,
+    ["5"] = 256,
     ["block"] = 10000
 }
 local ASYNC_PRIORITY = "ASYNC_PRIORITY"
@@ -25,7 +27,7 @@ function onInit()
     math.randomseed(os.time() - os.clock() * 1000);
     Interface.onDesktopInit = self.onDesktopInit
 	OptionsManager.registerOption2(ASYNC_PRIORITY, false, "option_header_search_options", "label_option_SCHEDULE_FACTOR", "option_entry_cycler",
-        { labels = "option_val_4|option_val_5|option_val_block|option_val_1|option_val_2", values = "4|5|block|1|2", baselabel = "option_val_3", baseval = "3", default = "3" });
+        { labels = "option_val_4|option_val_5|option_val_block|option_val_1_8|option_val_1_4|option_val_1|option_val_2", values = "4|5|block|1/8|1/4|1|2", baselabel = "option_val_3", baseval = "3", default = "3" });
 end
 
 function setShowIndex(bStatus)
@@ -100,7 +102,7 @@ function asyncCallComplete(callName)
     Debug.console("asyncCallComplete() Enter: ".. callName)
     _activeCall = ""
     _activeAsyncArgs[callName] = nil
-    _asyncFunctions[callName] = nil
+--     _asyncFunctions[callName] = nil
     local asyncResults = _activeAsyncResults[callName]
     local callbackFn = _resultCallbacks[callName]
     local sTime = _asyncStartTimes[callName]
@@ -114,18 +116,23 @@ end
 
 function handleAsyncOOB(callName, callArgs)
     if ((callArgs or "") == "") or (#callArgs == 0) then return false end
-    local targetFn = _asyncFunctions[callName]
-    local nextArg = table.remove(callArgs)
-    local cRes = targetFn(nextArg)
+--     local targetFn = _asyncFunctions[callName]
+    local nextArg = callArgs[#callArgs]
+--     local cRes = targetFn(nextArg)
+    local cRes = nextArg.run(nextArg)
+    if not nextArg.isActive then
+        table.remove(callArgs)
+    end
     if (cRes or "") ~= "" then table.insert(_activeAsyncResults[callName], cRes) end
     return true
 end
 
-function scheduleAsync(callName, targetFn, callArgs, callbackFn)
+-- function scheduleAsync(callName, targetFn, callArgs, callbackFn)
+function scheduleAsync(callName, callArgs, callbackFn)
     if (callArgs or "") == "" then return end
     Debug.console("Scheduling async call: ".. callName, #callArgs)
     table.insert(_pendingCalls, callName)
-    _asyncFunctions[callName] = targetFn
+--     _asyncFunctions[callName] = targetFn
     _activeAsyncArgs[callName] = callArgs
     _resultCallbacks[callName] = callbackFn
     _asyncCallCount[callName] = #callArgs
