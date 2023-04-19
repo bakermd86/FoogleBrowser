@@ -1,4 +1,5 @@
 <root>
+
     <windowclass name="async_trigger">
         <placement>
             <size width="50" height="50"/>
@@ -9,11 +10,11 @@
         </sizelimits>
         <invisible />
         <disabled />
-        <script file="scripts/async_trigger.lua" />
+        <script file="lib_async/scripts/async_trigger.lua" />
     </windowclass>
 
     <windowclass name="async_status">
-        <frame name="browser_frame" offset="10,2,10,10"/>
+        <frame name="fieldfocus" offset="7,5,7,5" />
         <sheetdata>
             <windowlist name="async_tasks">
                 <anchored>

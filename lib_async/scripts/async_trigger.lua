@@ -1,6 +1,3 @@
-local _lastx = 0
-local _lasty = 0
-
 function onInit()
     self.onSizeChanged = sizeTrigger
     activate()

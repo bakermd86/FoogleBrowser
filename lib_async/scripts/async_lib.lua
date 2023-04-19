@@ -8,7 +8,7 @@ local _asyncStartTimes = {}
 local _callWins = {}
 local _activeCall = ""
 local _asyncActive = false
-local _showIndexStatus = false
+local _showStatus = false
 local _asyncPriority = nil
 local _priorityCounter = -1
 local _priorityMap = {
@@ -27,12 +27,12 @@ ASYNC_PRIORITY = "ASYNC_PRIORITY"
 function onInit()
     math.randomseed(os.time() - os.clock() * 1000);
     Interface.onDesktopInit = self.onDesktopInit
-	OptionsManager.registerOption2(ASYNC_PRIORITY, false, "option_header_search_options", "label_option_SCHEDULE_FACTOR", "option_entry_cycler",
+	OptionsManager.registerOption2(ASYNC_PRIORITY, false, "option_header_async_options", "label_option_SCHEDULE_FACTOR", "option_entry_cycler",
         { labels = "option_val_2|option_val_3|option_val_4|option_val_5|option_val_block|option_val_3n|option_val_2n|option_val_1n", values = "2|3|4|5|block|-3|-2|-1", baselabel = "option_val_1", baseval = "1", default = "1" });
 end
 
-function setShowIndex(bStatus)
-    _showIndexStatus = bStatus
+function setShowStatus(bStatus)
+    _showStatus = bStatus
 end
 
 function onDesktopInit()
@@ -42,7 +42,7 @@ function onDesktopInit()
 end
 
 function startAsync()
-    if OptionsManager.getOption(ASYNC_PRIORITY) == "block" then _showIndexStatus = false end
+    if OptionsManager.getOption(ASYNC_PRIORITY) == "block" then _showStatus = false end
     hookDesktop()
 end
 
@@ -55,7 +55,7 @@ end
 
 function hookDesktop()
     local w = Interface.openWindow("async_trigger", "")
-    toggleStatus(_showIndexStatus)
+    toggleStatus(_showStatus)
 end
 
 function setAsyncActive(asyncActive)

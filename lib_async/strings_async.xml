@@ -1,0 +1,9 @@
+<root>
+	<string name="option_header_async_options">Search Options</string>
+    <string name="label_option_SCHEDULE_FACTOR">Event Loop Priority</string>
+    <string name="option_val_block">Blocking</string>
+    <string name="block">block</string>
+	<string name="option_val_1n">-1</string>
+	<string name="option_val_2n">-2</string>
+	<string name="option_val_3n">-3</string>
+</root>

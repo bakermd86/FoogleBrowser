@@ -110,7 +110,7 @@ function loadSettings()
     _indexNonText = OptionsManager.getOption(INDEX_NON_TEXT) == "on"
     _indexShowStatus = OptionsManager.getOption(INDEX_SHOW_STATUS) == "on"
     _indexOnLoad = OptionsManager.getOption(INDEX_ON_LOAD) == "on"
-    AsyncLib.setShowIndex(_indexShowStatus)
+    AsyncLib.setShowStatus(_indexShowStatus)
 end
 
 function buildIndex()
