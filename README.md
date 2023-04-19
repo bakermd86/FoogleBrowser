@@ -45,5 +45,45 @@ browser:
 
 ![](doc/5e_usage_example.gif)
 
-## Search Features
+## Search Options
 
+The search feature depends on a search indexer that runs in the background and builds an index of campaign and module 
+records in order to serve search results quickly. The problem is that FG doesn't have any way to execute code in the background.
+
+In order to make the search indexing work adequately across a variety of environments, the search indexing has many 
+config options that impact its performance. For simplicity, there is a console command to set the search options to one 
+of five preset levels based on your preferences:
+
+> /indexMode <min|low|normal|high|max>
+
+The "min" setting will disable indexing on-load and only index on-demand. I would recommend using that if you just want 
+to use the browser for organizing records in tabs and don't want to use the search.
+
+The other four settings (low, normal, high, max) are based on the performance of your PC. The main limiting factor seems 
+to be disk speed. On an NVMe drive, high or max seem to work fine. The slower the read performance of the drive, the 
+more you will notice impacts to the usability of the interface from the indexer.
+
+If you want to tweak the settings manually, these are the available options:
+
+![](doc/settings.png)
+
+* Basic Indexing
+    * Turning on Basic Indexing will restrict the indexer to simple string fields only, which speeds up indexing
+    * It will also use a basic whitespace-only tokenizer instead of the normal tokenizer that handles common work pre/suffixes
+* Event Loop Priority
+    * This controls how much priority the indexer event loop will be given
+    * Higher settings will result in more work being done by each event loop iteration before returning control to the FG client
+    * The "Blocking" setting will tell the event loop to just run continuously without returning control to FG until it is done. It locks up the UI entirely while indexing, but it will run fastest in this mode, if that is what you want.
+* Index Formatted Text
+    * Controls whether to index formattedtext database fields
+* Index Non-Text Nodes
+    * Controls whether to index non-text database fields, like image names, dice, links, etc. 
+* Index on-load
+    * Controls whether to run the indexer automatically at startup. 
+    * When disabled, the indexer will not run unless you manually click "Rebuild Search Index"
+    * Disables search functionality altogether until you manually run the indexer
+* Show Indexing Status
+    * When enabled, active indexing jobs will be shown in a small, transparent window in the top right.
+
+In addition to the general settings, the Module Indexing window can also be used to toggle indexing for loaded modules. 
+Modules that are not selected here will not be indexed, and their contents will not be visible in search results.
