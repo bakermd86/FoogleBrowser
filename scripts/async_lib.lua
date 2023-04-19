@@ -10,21 +10,25 @@ local _activeCall = ""
 local _asyncActive = false
 local _showIndexStatus = false
 local _asyncPriority = nil
+local _priorityCounter = -1
 local _priorityMap = {
-    ["1"] = 1,
-    ["2"] = 2,
-    ["3"] = 4,
-    ["4"] = 8,
-    ["5"] = 16,
-    ["block"] = 10000
+    ["-3"] = 1,
+    ["-2"] = 4,
+    ["-1"] = 16,
+    ["1"] = 32,
+    ["2"] = 64,
+    ["3"] = 128,
+    ["4"] = 256,
+    ["5"] = 512,
+    ["block"] = 1000000
 }
-local ASYNC_PRIORITY = "ASYNC_PRIORITY"
+ASYNC_PRIORITY = "ASYNC_PRIORITY"
 
 function onInit()
     math.randomseed(os.time() - os.clock() * 1000);
     Interface.onDesktopInit = self.onDesktopInit
 	OptionsManager.registerOption2(ASYNC_PRIORITY, false, "option_header_search_options", "label_option_SCHEDULE_FACTOR", "option_entry_cycler",
-        { labels = "option_val_4|option_val_5|option_val_block|option_val_1|option_val_2", values = "4|5|block|1|2", baselabel = "option_val_3", baseval = "3", default = "3" });
+        { labels = "option_val_2|option_val_3|option_val_4|option_val_5|option_val_block|option_val_3n|option_val_2n|option_val_1n", values = "2|3|4|5|block|-3|-2|-1", baselabel = "option_val_1", baseval = "1", default = "1" });
 end
 
 function setShowIndex(bStatus)
@@ -32,6 +36,7 @@ function setShowIndex(bStatus)
 end
 
 function onDesktopInit()
+    toggleStatus(false)
     if not _asyncActive then return end
     hookDesktop()
 end
@@ -57,18 +62,21 @@ function setAsyncActive(asyncActive)
     _asyncActive = asyncActive
 end
 
-local _dumped = 0
-
 function eventLoop()
     if( #_pendingCalls == 0) and (_activeCall == "") then return false end
-    if math.fmod(_dumped, 250) == 0 then
-        Debug.printstack()
-    end
-    _dumped = _dumped + 1
     local sTime = os.clock()
     _asyncPriority = OptionsManager.getOption(ASYNC_PRIORITY)
     local lCount = 0
-    while lCount < _priorityMap[_asyncPriority] do
+    local lPrio = _priorityMap[_asyncPriority]
+    if lPrio < 1 then
+        if _priorityCounter >= lPrio then
+            lPrio = 1
+            _priorityCounter = -1
+        else
+            _priorityCounter = _priorityCounter - 1
+        end
+    end
+    while lCount < lPrio do
         if (_activeCall or "") == "" then
             _activeCall = table.remove(_pendingCalls, 1)
             Debug.console("eventLoop() start call: ", _activeCall)
@@ -107,8 +115,11 @@ end
 function handleAsyncOOB(callName, callArgs)
     if ((callArgs or "") == "") or (#callArgs == 0) then return false end
     local targetFn = _asyncFunctions[callName]
-    local nextArg = table.remove(callArgs)
+    local nextArg = callArgs[#callArgs]
     local cRes = targetFn(nextArg)
+    if not nextArg.isActive then
+        table.remove(callArgs)
+    end
     if (cRes or "") ~= "" then table.insert(_activeAsyncResults[callName], cRes) end
     return true
 end

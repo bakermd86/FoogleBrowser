@@ -1,26 +1,25 @@
-local _indexLogicVer = 5
-local indexAgeLimit = 5
 local _forwardSearchIndex = {}
 local _reverseSearchIndex = {}
 local _indexedModules = {}
 local _moduleIndexingData = {}
 local MODULE_IDX_DATA = "moduleIndexingData"
--- local INDEX_MODULES = "INDEX_MODULES"
+local INDEX_ON_LOAD = "INDEX_ON_LOAD"
 local INDEX_FMT_TEXT = "INDEX_FMT_TEXT"
 local INDEX_NON_TEXT = "INDEX_NON_TEXT"
 local INDEX_SIMPLE = "INDEX_SIMPLE"
 local INDEX_SHOW_STATUS = "INDEX_SHOW_STATUS"
--- local INDEX_PERSIST = "INDEX_PERSIST"
 local _indexFmt = nil
 local _indexSimple = nil
-local _indexStartTime = nil
 local _indexNonText = nil
 local _indexShowStatus = nil
+local _indexOnLoad = nil
+local _indexLoaded = false
 
 function onInit()
+    Comm.registerSlashHandler("indexMode", setIndexMode, "/indexMode <min|low|normal|high|max>")
     OptionsManager.registerButton("label_option_rebuild_index", "reindex_search", "")
     OptionsManager.registerButton("label_option_module_selection", "module_selection", "")
-    for _, o in ipairs({INDEX_FMT_TEXT, INDEX_SHOW_STATUS}) do
+    for _, o in ipairs({INDEX_FMT_TEXT, INDEX_SHOW_STATUS, INDEX_ON_LOAD}) do
         OptionsManager.registerOption2(o, true, "option_header_search_options", "label_option_"..o, "option_entry_cycler",
         { labels = "option_val_on", values = "on", baselabel = "option_val_off", baseval = "off", default = "on" })
     end
@@ -28,18 +27,54 @@ function onInit()
         OptionsManager.registerOption2(o, true, "option_header_search_options", "label_option_"..o, "option_entry_cycler",
         { labels = "option_val_on", values = "on", baselabel = "option_val_off", baseval = "off", default = "off" })
     end
---     CampaignRegistry["storedSearchIndex"] = nil
-    Interface.onDesktopInit = loadIndex;
---     loadIndex()
+    if (CampaignRegistry[MODULE_IDX_DATA] or "") ~= "" then _moduleIndexingData = CampaignRegistry[MODULE_IDX_DATA] end
+    loadSettings()
+    if _indexOnLoad then
+        Interface.onDesktopInit = loadIndex;
+    end
 end
 
+-- INDEX_SIMPLE, INDEX_ON_LOAD, ASYNC_PRIORITY, INDEX_FMT_TEXT, INDEX_NON_TEXT, INDEX_ALL_MODULES, INDEX_NO_MODULES
+
+local _modeMap = {
+    min = {"on", "off", "-3", "off", "off", false, true},
+    low = {"on", "on", "-2", "off", "off", false, false},
+    normal = {"off", "on", "1", "on", "off", false, false},
+    high = {"off", "on", "3", "on", "off", false, false},
+    max = {"off", "on", "5", "on", "on", true, false},
+}
+
+function setIndexMode(sCommand, indexMode)
+    if (_modeMap[indexMode] or "") == "" then
+        Debug.chat('Unrecognized index mode "' .. indexMode .. '"')
+        return
+    end
+    local idxSimple, idxLoad, asyncPrio, indexFmt, indexNTxt, indexAllMod, indexNoMod = unpack(_modeMap[indexMode])
+    OptionsManager.setOption(INDEX_SIMPLE, idxSimple)
+    OptionsManager.setOption(INDEX_ON_LOAD, idxLoad)
+    OptionsManager.setOption(AsyncLib.ASYNC_PRIORITY, asyncPrio)
+    OptionsManager.setOption(INDEX_FMT_TEXT, indexFmt)
+    OptionsManager.setOption(INDEX_NON_TEXT, indexNTxt)
+    if (indexAllMod or indexNoMod) then
+        local _idxSet = indexAllMod and 1 or 0
+        for _, module in ipairs(Module.getModules()) do
+            if  (_moduleIndexingData[module] or "") ~= "" then
+                _moduleIndexingData[module]["isIndexed"] = _idxSet
+            end
+            CampaignRegistry[MODULE_IDX_DATA] = _moduleIndexingData
+        end
+    end
+end
 
 function loadIndex()
-    if (CampaignRegistry[MODULE_IDX_DATA] or "") ~= "" then _moduleIndexingData = CampaignRegistry[MODULE_IDX_DATA] end
     buildIndex()
-    connectDBListeners()
-	Module.addEventHandler("onModuleLoad", onModuleLoad);
-	Module.addEventHandler("onModuleUnload", onModuleUnload);
+    saveIndex()
+    if not _indexLoaded then
+        connectDBListeners()
+        Module.addEventHandler("onModuleLoad", onModuleLoad);
+        Module.addEventHandler("onModuleUnload", onModuleUnload);
+        _indexLoaded = true
+    end
 end
 
 function updateSearchByWord(word, weightMod, searchResults)
@@ -61,28 +96,6 @@ function updateSearchByWord(word, weightMod, searchResults)
     return results
 end
 
-function processNodeAsync(nodeDef)
-    local nodeStr = nodeDef['recordNode']
-    local recordType = nodeDef['recordType']
-    local recordNode = DB.findNode(nodeStr)
-    for mVal, tokens in pairs(indexRecord(recordNode)) do
-        if (_forwardSearchIndex[mVal] == nil) then _forwardSearchIndex[mVal] = {} end
-        _forwardSearchIndex[mVal][nodeStr] = { ["recordType"] = recordType, ["weight"] = tokens["weight"] }
-        if (_reverseSearchIndex[nodeStr] == nil) then _reverseSearchIndex[nodeStr] = {} end
-        table.insert(_reverseSearchIndex[nodeStr], mVal)
-    end
-end
-
-function processNode(recordNode, recordType)
-    local nodeStr = DB.getPath(recordNode)
-    for mVal, tokens in pairs(indexRecord(recordNode)) do
-        if (_forwardSearchIndex[mVal] == nil) then _forwardSearchIndex[mVal] = {} end
-        _forwardSearchIndex[mVal][nodeStr] = { ["recordType"] = recordType, ["weight"] = tokens["weight"] }
-        if (_reverseSearchIndex[nodeStr] == nil) then _reverseSearchIndex[nodeStr] = {} end
-        table.insert(_reverseSearchIndex[nodeStr], mVal)
-    end
-end
-
 function saveIndex()
     CampaignRegistry["indexedModules"] = nil
     CampaignRegistry["storedSearchIndex"] = nil
@@ -96,6 +109,7 @@ function loadSettings()
     _indexSimple = OptionsManager.getOption(INDEX_SIMPLE) == "on"
     _indexNonText = OptionsManager.getOption(INDEX_NON_TEXT) == "on"
     _indexShowStatus = OptionsManager.getOption(INDEX_SHOW_STATUS) == "on"
+    _indexOnLoad = OptionsManager.getOption(INDEX_ON_LOAD) == "on"
     AsyncLib.setShowIndex(_indexShowStatus)
 end
 
@@ -104,11 +118,10 @@ function buildIndex()
     _forwardSearchIndex = {}
     _reverseSearchIndex = {}
     _indexedModules = {}
-    _indexStartTime = os.clock()
     local nodesToIndex = getIndexNodesAsync()
     local libraryNodesToIndex = getLibraryNodesAsync()
-    AsyncLib.scheduleAsync("campaignNodesIndex", processNodeAsync, nodesToIndex)
-    AsyncLib.scheduleAsync("libraryNodesIndex", buildLibraryReferenceIndexAsync, libraryNodesToIndex)
+    AsyncLib.scheduleAsync("campaignNodesIndex", runIndexer, nodesToIndex)
+    AsyncLib.scheduleAsync("libraryNodesIndex", runIndexer, libraryNodesToIndex)
     getModuleNodesAsync()
     AsyncLib.startAsync()
 end
@@ -125,7 +138,8 @@ function getIndexNodesAsync()
     for _, recordType in pairs(LibraryData.getRecordTypes()) do
         for _, recordMapping in ipairs(LibraryData.getMappings(recordType)) do
             for name, recordNode  in pairs(DB.getChildren(recordMapping)) do
-                table.insert(nodesToIndex, {["recordNode"] = DB.getPath(recordNode), ["recordType"] = recordType})
+                local nIdx = newIndexer(recordNode, recordType, false)
+                table.insert(nodesToIndex, nIdx)
              end
         end
     end
@@ -140,52 +154,13 @@ function getModuleNodesAsync()
     end
 end
 
-function buildCampaignIndex()
-    for _, recordType in pairs(LibraryData.getRecordTypes()) do
-        for _, recordMapping in ipairs(LibraryData.getMappings(recordType)) do
-            for name, recordNode  in pairs(DB.getChildren(recordMapping)) do
-                processNode(recordNode, recordType)
-             end
-        end
-    end
-end
-
 function getLibraryNodesAsync()
     local libraryNodes = {}
     for libraryNode, _  in pairs(SearchManager.getAllFromModules("library")) do
-        table.insert(libraryNodes, libraryNode)
+        local nIdx = newIndexer(libraryNode, nil, true)
+        table.insert(libraryNodes, nIdx)
     end
     return libraryNodes
-end
-
-function buildLibraryReferenceIndexAsync(libraryNode)
-    for mVal, tokens in pairs(indexLibraryNode(libraryNode)) do
-        local mLibNode = tokens["mVal"]
-        if (_forwardSearchIndex[mVal] == nil) then _forwardSearchIndex[mVal] = {} end
-        local matchClass, _ = DB.getValue(mLibNode, "librarylink")
-        _forwardSearchIndex[mVal][mLibNode] = { ["recordType"] = matchClass, ["weight"] = tokens["weight"] }
-    end
-end
-
-function buildLibraryReferenceIndex()
-    for libraryNode, _  in pairs(SearchManager.getAllFromModules("library")) do
-        for mVal, tokens in pairs(indexLibraryNode(libraryNode)) do
-            local mLibNode = tokens["mVal"]
-            if (_forwardSearchIndex[mVal] == nil) then _forwardSearchIndex[mVal] = {} end
-            local matchClass, _ = DB.getValue(mLibNode, "librarylink")
-            _forwardSearchIndex[mVal][mLibNode] = { ["recordType"] = matchClass, ["weight"] = tokens["weight"] }
-        end
-    end
-end
-
-function buildModuleIndex()
-    loadSettings()
-    for _, module in ipairs(Module.getModules()) do
-        if Module.getModuleInfo(module)["loaded"] then
-            Debug.console("Loaded module: " .. module, _)
-            onModuleLoad(module)
-        end
-    end
 end
 
 function getModuleData(module)
@@ -214,11 +189,12 @@ function onModuleLoad(module)
     for _, recordType in pairs(LibraryData.getRecordTypes()) do
         for _, recordMapping in ipairs(LibraryData.getMappings(recordType)) do
             for _, recordNode in pairs(DB.getChildren(recordMapping .. "@" .. module)) do
-                table.insert(moduleNodes, {["recordNode"] = DB.getPath(recordNode), ["recordType"] = recordType})
+                local nIdx = newIndexer(recordNode, recordType, false)
+                table.insert(moduleNodes, nIdx)
             end
         end
     end
-    AsyncLib.scheduleAsync(module .. "NodesIndex", processNodeAsync, moduleNodes, handleModuleIndexRes)
+    AsyncLib.scheduleAsync(module .. "NodesIndex", runIndexer, moduleNodes, handleModuleIndexRes)
 end
 
 function onModuleUnload(module)
@@ -238,7 +214,6 @@ function onModuleUnload(module)
         end
     end
     _indexedModules[module] = nil
---     saveIndex()
     Debug.console("Clearing index for module " .. module .. " took " .. os.clock() - sTime)
 end
 
@@ -272,32 +247,13 @@ end
 
 function reindexNode(nodeChanged)
     loadSettings()
-    local sTime = os.clock()
-    local nodeStr = DB.getPath(nodeChanged)
-    local recordType = LibraryData.getRecordTypeFromRecordPath(nodeStr)
-    local newIdx = indexRecord(nodeChanged)
-    local c = 0
-    if (_reverseSearchIndex[nodeStr] or "") ~= "" then
-        for _, mVal in ipairs(_reverseSearchIndex[nodeStr]) do
-            if not newIdx[mVal] then
-                _forwardSearchIndex[mVal][nodeStr] = nil
-            end
-        end
-    end
-    _reverseSearchIndex[nodeStr] = {}
-    for mVal, tokens in pairs(newIdx) do
-        if (_forwardSearchIndex[mVal] == nil) then _forwardSearchIndex[mVal] = {} end
-        if not _forwardSearchIndex[mVal][nodeStr] then
-            _forwardSearchIndex[mVal][nodeStr] = { ["recordType"] = recordType, ["weight"] = tokens["weight"] }
-        end
-        c = c + 1
-        table.insert(_reverseSearchIndex[nodeStr], mVal)
-    end
+    local recordType = LibraryData.getRecordTypeFromRecordPath(DB.getPath(nodeChanged))
+    local indexer = newIndexer(nodeChanged, recordType, false)
+    indexer.isReindex = true
+    AsyncLib.scheduleAsync("nodeChanged"..indexer.nodeStr, runIndexer, {indexer})
+    AsyncLib.startAsync()
+    AsyncLib.toggleStatus(false)
     saveIndex()
-end
-
-function indexLibraryNode(libraryNode)
-    return indexNode(libraryNode, true)
 end
 
 function getLibraryDocParent(libraryNode)
@@ -308,24 +264,103 @@ function getLibraryDocParent(libraryNode)
     end
 end
 
-function indexRecord(node)
-    return indexNode(node, false)
-end
-
-function indexNode(node, isLibrary)
-    if DB.getType(node) == "node" then
-        local node_results = {}
-        for _, childNode in pairs(DB.getChildren(node)) do
-            local childPath = DB.getPath(childNode)
-            for mVal, _ in pairs(indexNode(childNode, isLibrary)) do
-                node_results[mVal] = _
-            end
-        end
-        return node_results
+function typeChecked(nodeType)
+    if nodeType == "string" then
+        return true
+    elseif nodeType == "formattedtext" then
+        return _indexFmt and not _indexSimple
     else
-        return indexEndNode(node, isLibrary)
+        return _indexNonText and not _indexSimple
     end
 end
+
+function walkChildren(node)
+    local children = {}
+    for _, childNode in pairs(DB.getChildren(node)) do
+        local nodeType = DB.getType(childNode)
+        if nodeType == "node" then
+            for _, innerChild in ipairs(walkChildren(childNode)) do
+                table.insert(children, innerChild)
+            end
+        elseif typeChecked(nodeType) then
+            table.insert(children, childNode)
+        end
+    end
+    return children
+end
+
+function initIndexer(indexer)
+    indexer.childNodes = walkChildren(indexer.node)
+    indexer.isStarted = true
+    indexer.isActive = true
+end
+
+function indexNextChild(indexer)
+    local nextChild = table.remove(indexer.childNodes)
+    for mVal, tokens in pairs(indexEndNode(nextChild, indexer.isLibrary)) do
+        if (indexer.node_results[mVal] or "") ~= "" then
+            indexer.node_results[mVal]["weight"] = indexer.node_results[mVal]["weight"] + tokens["weight"]
+        else
+            indexer.node_results[mVal] = tokens
+        end
+    end
+    indexer.isActive = true
+end
+
+function clearIndex(indexer)
+    if (_reverseSearchIndex[indexer.nodeStr] or "") ~= "" then
+        for _, mVal in ipairs(_reverseSearchIndex[indexer.nodeStr]) do
+            _forwardSearchIndex[mVal][indexer.nodeStr] = nil
+        end
+    end
+    _reverseSearchIndex[indexer.nodeStr] = {}
+end
+
+function updateOnIndex(indexer)
+    if indexer.isReindex then
+        clearIndex(indexer)
+    end
+    for mVal, tokens in pairs(indexer.node_results) do
+        if (_forwardSearchIndex[mVal] == nil) then _forwardSearchIndex[mVal] = {} end
+        local recordType = indexer.recordType
+        if indexer.isLibrary then
+            local mLibNode = tokens["mVal"]
+            recordType, _ = DB.getValue(mLibNode, "librarylink")
+        end
+        _forwardSearchIndex[mVal][indexer.nodeStr] = { ["recordType"] = recordType, ["weight"] = tokens["weight"] }
+        if not indexer.isLibrary then
+            if (_reverseSearchIndex[indexer.nodeStr] == nil) then _reverseSearchIndex[indexer.nodeStr] = {} end
+            table.insert(_reverseSearchIndex[indexer.nodeStr], mVal)
+        end
+    end
+    indexer.isActive = false
+end
+
+function runIndexer(indexer)
+    if not indexer.isStarted then
+        initIndexer(indexer)
+    elseif #indexer.childNodes == 0 then
+        updateOnIndex(indexer)
+    else
+        indexNextChild(indexer)
+    end
+end
+
+function newIndexer(node, recordType, isLibrary)
+    local indexer = {}
+    indexer.node = node or ""
+    indexer.recordType = recordType or ""
+    indexer.nodeType = DB.getType(node)
+    indexer.nodeStr = DB.getPath(indexer.node)
+    indexer.isActive = false
+    indexer.isStarted = false
+    indexer.isLibrary = isLibrary or false
+    indexer.isReindex = false
+    indexer.node_results = {}
+    indexer.childNodes = {}
+    return indexer
+end
+
 
 local wordMatchPat = "[a-z0-9'`]+"
 local subWordPat = "[a-z]+"
