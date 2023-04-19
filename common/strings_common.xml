@@ -12,12 +12,13 @@
     <string name="label_option_INDEX_SHOW_STATUS">Show Indexing Status</string>
     <string name="label_option_INDEX_SIMPLE">Basic Indexing</string>
     <string name="label_option_SCHEDULE_FACTOR">Event Loop Priority</string>
-    <string name="label_option_INDEX_ON_LOAD">Index search on-load</string>
+    <string name="label_option_INDEX_ON_LOAD">Index on-load</string>
 
     <string name="button_save_and_close">Save &amp; Close</string>
     <string name="button_cancel">Cancel</string>
     <string name="option_val_block">Blocking</string>
     <string name="block">block</string>
-	<string name="option_val_1_4">1/4</string>
-	<string name="option_val_1_8">1/8</string>
+	<string name="option_val_1n">-1</string>
+	<string name="option_val_2n">-2</string>
+	<string name="option_val_3n">-3</string>
 </root>
