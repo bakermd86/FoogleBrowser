@@ -10,11 +10,11 @@ local _activeCall = ""
 local _asyncActive = false
 local _showStatus = false
 local _asyncPriority = nil
-local _priorityCounter = -1
 local _priorityMap = {
     ["-3"] = 1,
     ["-2"] = 4,
     ["-1"] = 16,
+    ["auto"] = "auto",
     ["1"] = 32,
     ["2"] = 64,
     ["3"] = 128,
@@ -22,13 +22,21 @@ local _priorityMap = {
     ["5"] = 512,
     ["block"] = 1000000
 }
+local _dynamicPerfTracker = {
+    lastCheckpoint = 0,
+    priorityHistory = {16,16,16},
+    priority = 16,
+    loopCount = 0,
+    _priorityCounter = 1,
+}
 ASYNC_PRIORITY = "ASYNC_PRIORITY"
+
 
 function onInit()
     math.randomseed(os.time() - os.clock() * 1000);
     Interface.onDesktopInit = self.onDesktopInit
 	OptionsManager.registerOption2(ASYNC_PRIORITY, true, "option_header_async_options", "label_option_SCHEDULE_FACTOR", "option_entry_cycler",
-        { labels = "option_val_2|option_val_3|option_val_4|option_val_5|option_val_block|option_val_3n|option_val_2n|option_val_1n", values = "2|3|4|5|block|-3|-2|-1", baselabel = "option_val_1", baseval = "1", default = "1" });
+        { labels = "option_val_1|option_val_2|option_val_3|option_val_4|option_val_5|option_val_block|option_val_3n|option_val_2n|option_val_1n", values = "1|2|3|4|5|block|-3|-2|-1", baselabel = "option_val_auto", baseval = "auto", default = "auto" });
 end
 
 function setShowStatus(bStatus)
@@ -54,12 +62,50 @@ function toggleStatus(showStatus)
 end
 
 function hookDesktop()
-    local w = Interface.openWindow("async_trigger", "")
+    if (User.isHost() or User.isLocal()) then
+        Interface.openWindow("async_trigger", "")
+    else
+        Interface.requestNewClientWindow("async_trigger", "")
+    end
     toggleStatus(_showStatus)
 end
 
 function setAsyncActive(asyncActive)
     _asyncActive = asyncActive
+end
+
+function isActive()
+    return _asyncActive
+end
+
+function dynamicPriority()
+    local rTime = os.time() - _dynamicPerfTracker.lastCheckpoint
+    if rTime >= 1 then
+        if rTime < 2 and _dynamicPerfTracker.loopCount > 0 then
+            local adjPrio = (_dynamicPerfTracker.loopCount * _dynamicPerfTracker.priority / 30)
+            table.remove(_dynamicPerfTracker.priorityHistory, 1)
+            for _, prio in ipairs(_dynamicPerfTracker.priorityHistory) do
+                adjPrio = adjPrio + prio
+            end
+            local newPriority = adjPrio / 3
+            table.insert(_dynamicPerfTracker.priorityHistory, newPriority)
+            _dynamicPerfTracker.priority = newPriority
+        end
+        _dynamicPerfTracker.lastCheckpoint = os.time()
+        _dynamicPerfTracker.loopCount = 0
+    end
+    if _dynamicPerfTracker.priority < 1 then
+        _dynamicPerfTracker._priorityCounter = _dynamicPerfTracker._priorityCounter - _dynamicPerfTracker.priority
+        if _dynamicPerfTracker._priorityCounter > 0 then
+            return 0
+        else
+            _dynamicPerfTracker._priorityCounter = _dynamicPerfTracker._priorityCounter + 1
+            _dynamicPerfTracker.loopCount = _dynamicPerfTracker.loopCount + 1
+            return 1
+        end
+    end
+    _dynamicPerfTracker.loopCount = _dynamicPerfTracker.loopCount + 1
+    return _dynamicPerfTracker.priority
 end
 
 function eventLoop()
@@ -68,14 +114,7 @@ function eventLoop()
     _asyncPriority = OptionsManager.getOption(ASYNC_PRIORITY)
     local lCount = 0
     local lPrio = _priorityMap[_asyncPriority]
-    if lPrio < 1 then
-        if _priorityCounter >= lPrio then
-            lPrio = 1
-            _priorityCounter = -1
-        else
-            _priorityCounter = _priorityCounter - 1
-        end
-    end
+    if lPrio == "auto" then lPrio = dynamicPriority() end
     while lCount < lPrio do
         if (_activeCall or "") == "" then
             _activeCall = table.remove(_pendingCalls, 1)
@@ -124,7 +163,7 @@ function handleAsyncOOB(callName, callArgs)
     return true
 end
 
-function scheduleAsync(callName, targetFn, callArgs, callbackFn)
+function scheduleAsync(callName, targetFn, callArgs, callbackFn, silent)
     if (callArgs or "") == "" then return end
     Debug.console("Scheduling async call: ".. callName, #callArgs)
     table.insert(_pendingCalls, callName)
@@ -133,9 +172,11 @@ function scheduleAsync(callName, targetFn, callArgs, callbackFn)
     _resultCallbacks[callName] = callbackFn
     _asyncCallCount[callName] = #callArgs
     _activeAsyncResults[callName] = {}
-    local statusWin = Interface.findWindow("asyncstatuspanel", "")
-    local callWin = statusWin.status.subwindow.async_tasks.createWindow()
-    callWin.jobName.setValue(callName)
-    callWin.jobStatus.setValue("Queued")
-    _callWins[callName] = callWin
+    if not silent then
+        local statusWin = Interface.findWindow("asyncstatuspanel", "")
+        local callWin = statusWin.status.subwindow.async_tasks.createWindow()
+        callWin.jobName.setValue(callName)
+        callWin.jobStatus.setValue("Queued")
+        _callWins[callName] = callWin
+    end
 end
