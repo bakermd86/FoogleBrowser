@@ -27,7 +27,7 @@ ASYNC_PRIORITY = "ASYNC_PRIORITY"
 function onInit()
     math.randomseed(os.time() - os.clock() * 1000);
     Interface.onDesktopInit = self.onDesktopInit
-	OptionsManager.registerOption2(ASYNC_PRIORITY, false, "option_header_async_options", "label_option_SCHEDULE_FACTOR", "option_entry_cycler",
+	OptionsManager.registerOption2(ASYNC_PRIORITY, true, "option_header_async_options", "label_option_SCHEDULE_FACTOR", "option_entry_cycler",
         { labels = "option_val_2|option_val_3|option_val_4|option_val_5|option_val_block|option_val_3n|option_val_2n|option_val_1n", values = "2|3|4|5|block|-3|-2|-1", baselabel = "option_val_1", baseval = "1", default = "1" });
 end
 

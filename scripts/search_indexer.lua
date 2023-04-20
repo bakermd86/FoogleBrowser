@@ -236,6 +236,7 @@ function connectNodeListener(nodeStr, isModule)
     if isModule then
         DB.addHandler(nodeStr, "onIntegrityChange", reindexNode)
     else
+--         if (not Session.isHost) and (DB.getParent(nodeStr).getName() == "charsheet") then return end
         DB.addHandler(nodeStr, "onChildUpdate", reindexNode)
     end
 end
@@ -246,6 +247,7 @@ function indexNewNode(nodeParent, newNode)
 end
 
 function reindexNode(nodeChanged)
+    if (not Session.isHost) and (DB.getParent(nodeChanged).getName() == "charsheet") then return end
     loadSettings()
     local recordType = LibraryData.getRecordTypeFromRecordPath(DB.getPath(nodeChanged))
     local indexer = newIndexer(nodeChanged, recordType, false)
