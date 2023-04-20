@@ -42,8 +42,8 @@ end
 
 local _modeMap = {
     min = {"on", "off", "-3", "off", "off", false, true},
-    low = {"on", "on", "-2", "off", "off", false, false},
-    normal = {"off", "on", "1", "on", "off", false, false},
+    low = {"on", "on", "-1", "off", "off", false, false},
+    normal = {"off", "on", "auto", "on", "off", false, false},
     high = {"off", "on", "3", "on", "off", false, false},
     max = {"off", "on", "5", "on", "on", true, false},
 }
