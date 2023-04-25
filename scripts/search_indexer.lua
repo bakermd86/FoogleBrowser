@@ -290,6 +290,7 @@ end
 
 function walkChildren(node)
     local children = {}
+    if (node or "") == "" then return children end
     for _, childNode in pairs(DB.getChildren(node)) do
         local nodeType = DB.getType(childNode)
         if nodeType == "node" then
