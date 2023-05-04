@@ -288,9 +288,13 @@ function typeChecked(nodeType)
     end
 end
 
+function childInvalid(node, ...)
+    return ((node or "") == "") or (type(node) ~= "databasenode" and type(node) ~= "string")
+end
+
 function walkChildren(node)
     local children = {}
-    if (node or "") == "" then return children end
+    if childInvalid(node) then return children end
     for _, childNode in pairs(DB.getChildren(node)) do
         local nodeType = DB.getType(childNode)
         if nodeType == "node" then

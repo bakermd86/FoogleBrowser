@@ -1,11 +1,11 @@
 <?xml version="1.0" encoding="iso-8859-1"?>
 
 <root logo="logo.png">
-	<announcement text="FG Browser v1.2.2" font="emotefont" />
+	<announcement text="FG Browser v1.2.3" font="emotefont" />
 
 	<properties>
 		<name>FG Browser</name>
-		<version>1.2.2</version>
+		<version>1.2.3</version>
 
 		<author>Fen</author>
 		<description>Adds a tabbed browser window for containing and searching records</description>
