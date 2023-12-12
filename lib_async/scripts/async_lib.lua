@@ -62,7 +62,7 @@ function toggleStatus(showStatus)
 end
 
 function hookDesktop()
-    if (User.isHost() or User.isLocal()) then
+    if User.isHost() then
         Interface.openWindow("async_trigger", "")
     else
         Interface.requestNewClientWindow("async_trigger", "")

@@ -30,7 +30,7 @@ function onInit()
     if (CampaignRegistry[MODULE_IDX_DATA] or "") ~= "" then _moduleIndexingData = CampaignRegistry[MODULE_IDX_DATA] end
     loadSettings()
     if _indexOnLoad then
-        if User.isHost() or User.isLocal() then
+        if User.isHost() then
             Interface.onDesktopInit = loadIndex;
         else
             User.getRemoteIdentities("charsheet", GameSystem.requestCharSelectDetailClient(), afterIdHook);
@@ -248,7 +248,7 @@ function connectNodeListener(nodeStr, isModule)
     if isModule then
         DB.addHandler(nodeStr, "onIntegrityChange", reindexNode)
     else
-        if (not (User.isHost() or User.isLocal())) and (DB.getParent(nodeStr).getName() == "charsheet") then return end
+        if (not User.isHost()) and (DB.getParent(nodeStr).getName() == "charsheet") then return end
         DB.addHandler(nodeStr, "onChildUpdate", reindexNode)
     end
 end

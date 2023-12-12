@@ -19,7 +19,7 @@ new_playerRecords = {
 }
 
 function onInit()
-    if User.isHost() or User.isLocal() then
+    if User.isHost() then
         for kRecordType,vRecordType in pairs(new_gmRecords) do
             LibraryData.setRecordTypeInfo(kRecordType, vRecordType);
         end
@@ -46,7 +46,7 @@ function lastUsedTabList()
 end
 
 function handleBrowseNodeReq(oobMsg)
-    if User.isHost() or User.isLocal() then
+    if User.isHost() then
         local newNode = DB.createChild(oobMsg.nodeSource).getNodeName()
         if (oobMsg.tempNode or "") ~= "" then
             DB.copyNode(oobMsg.tempNode, newNode)
@@ -63,7 +63,7 @@ function handleBrowseNodeReq(oobMsg)
 end
 
 function handleBrowseNodeResp(oobMsg)
-    if User.isHost() or User.isLocal() then return end
+    if User.isHost() then return end
     openBrowser(oobMsg.nodeName, oobMsg.searchVal)
 end
 
@@ -72,7 +72,7 @@ function newTempBrowser()
 end
 
 function persistBrowser(tempNode)
-    if User.isHost() or User.isLocal() then
+    if User.isHost() then
         local newNode = DB.createChild("record_browser")
         DB.copyNode(tempNode, newNode)
         Interface.openWindow("record_browser", newNode)
@@ -89,7 +89,7 @@ function persistBrowser(tempNode)
 end
 
 function showBrowser(sCommands, sParams)
-    if User.isHost() or User.isLocal() then
+    if User.isHost() then
         openBrowser(newTempBrowser(), sParams)
     else
         local oobMsg = {
